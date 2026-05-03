@@ -66,19 +66,19 @@ export default function AnalyticsPage() {
     <div>
       <div className="page-header">
         <div>
-          <div className="page-title">Analytics</div>
-          <div className="page-subtitle">Business performance insights</div>
+          <h1 className="page-title">Analytics</h1>
+          <p className="page-subtitle">Business performance insights</p>
         </div>
-        <div className="flex gap-4 items-center">
-          <div className="flex items-center gap-2">
-            <span className="form-label" style={{ marginBottom: 0 }}>From:</span>
-            <input type="date" className="form-input" style={{ width: 'auto', height: 40 }} value={startDate} onChange={e => setStartDate(e.target.value)} />
+        <div className="flex gap-3 items-end flex-wrap-mobile w-full-mobile">
+          <div className="flex flex-col gap-1 flex-1-mobile">
+            <span className="form-label" style={{ marginBottom: 0 }}>From</span>
+            <input type="date" className="form-input" style={{ height: 40 }} value={startDate} onChange={e => setStartDate(e.target.value)} />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="form-label" style={{ marginBottom: 0 }}>To:</span>
-            <input type="date" className="form-input" style={{ width: 'auto', height: 40 }} value={endDate} onChange={e => setEndDate(e.target.value)} />
+          <div className="flex flex-col gap-1 flex-1-mobile">
+            <span className="form-label" style={{ marginBottom: 0 }}>To</span>
+            <input type="date" className="form-input" style={{ height: 40 }} value={endDate} onChange={e => setEndDate(e.target.value)} />
           </div>
-          <button className="btn btn-secondary btn-sm" style={{ height: 40 }} onClick={fetchAnalytics}>Apply</button>
+          <button className="btn btn-secondary flex-1-mobile" style={{ height: 40 }} onClick={fetchAnalytics}>Apply</button>
         </div>
       </div>
 
@@ -194,18 +194,20 @@ export default function AnalyticsPage() {
         {data.tableUsage.length > 0 && (
           <div className="card">
             <div className="card-header"><div className="card-title">Table Performance</div></div>
-            <table className="data-table">
-              <thead><tr><th>Table</th><th>Orders</th><th>Revenue</th></tr></thead>
-              <tbody>
-                {data.tableUsage.map(t => (
-                  <tr key={t._id}>
-                    <td><strong>Table {t._id}</strong></td>
-                    <td>{t.count}</td>
-                    <td>₹{t.revenue.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead><tr><th>Table</th><th>Orders</th><th>Revenue</th></tr></thead>
+                <tbody>
+                  {data.tableUsage.map(t => (
+                    <tr key={t._id}>
+                      <td><strong>Table {t._id}</strong></td>
+                      <td>{t.count}</td>
+                      <td>₹{t.revenue.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

@@ -140,28 +140,28 @@ export default function StaffOrders() {
           {/* Menu Section */}
           <div className="menu-section p-6">
             <div className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex items-center justify-between mb-6">
-                <div className="category-pills" style={{ marginBottom: 0, paddingBottom: 0 }}>
-                  <button className={`category-pill ${selCat === 'all' ? 'active' : ''}`} onClick={() => setSelCat('all')}>All Items</button>
-                  {categories.map(c => <button key={c._id} className={`category-pill ${selCat === c._id ? 'active' : ''}`} onClick={() => setSelCat(c._id)}>{c.name}</button>)}
-                </div>
-                
-                <div className="search-input" style={{ width: 300, position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: 14 }}>🔍</span>
-                  <input className="form-input" style={{ paddingLeft: 44, borderRadius: 99 }} placeholder="Search dishes..." value={search} onChange={e => setSearch(e.target.value)} />
-                </div>
-              </div>
+          <div className="flex items-center justify-between mb-8">
+            <div className="category-pills">
+              <button className={`category-pill ${selCat === 'all' ? 'active' : ''}`} onClick={() => setSelCat('all')}>All Items</button>
+              {categories.map(c => <button key={c._id} className={`category-pill ${selCat === c._id ? 'active' : ''}`} onClick={() => setSelCat(c._id)}>{c.name}</button>)}
+            </div>
+            
+            <div className="search-container">
+              <span className="search-icon">🔍</span>
+              <input className="form-input search-input" placeholder="Search dishes..." value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+          </div>
 
               {source === 'direct' && (
                 <div className="surface-card p-6 mb-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="form-label" style={{ marginBottom: 0 }}>Select Table</div>
+                    <div className="form-label">Select Table</div>
                     <div className="flex gap-2">
                       <div className="badge badge-green">Available</div>
                       <div className="badge badge-red">Occupied</div>
                     </div>
                   </div>
-                  <div className="table-grid" style={{ marginBottom: 0 }}>
+                  <div className="table-grid">
                     {tables.map(t => (
                       <div key={t._id} className={`table-tile ${t.status} ${selTable?._id === t._id ? 'selected' : ''}`}
                         onClick={() => t.status !== 'occupied' ? setSelTable(selTable?._id === t._id ? null : t) : toast.error('Table occupied')}>

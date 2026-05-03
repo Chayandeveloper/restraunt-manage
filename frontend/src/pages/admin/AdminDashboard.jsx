@@ -76,21 +76,21 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-6 animate-slide-up">
-      <div className="flex items-center justify-between mb-8">
+      <div className="dashboard-header animate-slide-up">
         <div>
-          <h1 className="card-title" style={{ fontSize: 24 }}>
+          <h1 className="page-title">
             Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, {user?.name?.split(' ')[0]} 👋
           </h1>
-          <p className="form-label" style={{ marginTop: 4 }}>{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+          <p className="page-subtitle">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
         </div>
-        <div className="flex gap-2">
-          <Link to="/admin/shift" className="btn btn-secondary">📋 Shift Report</Link>
-          <Link to="/admin/menu" className="btn btn-primary">🍽️ Manage Menu</Link>
+        <div className="flex gap-3 w-full-mobile">
+          <Link to="/admin/shift" className="btn btn-secondary flex-1">📋 Shift Report</Link>
+          <Link to="/admin/menu" className="btn btn-primary flex-1">🍽️ Manage Menu</Link>
         </div>
       </div>
 
       {/* Source Filters */}
-      <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+      <div className="source-filters mb-8">
         {[
           { id: 'all', label: 'All Sources', icon: '🌍' },
           { id: 'direct', label: 'Direct', icon: '🏪' },
@@ -101,7 +101,7 @@ export default function AdminDashboard() {
             key={s.id} 
             className={`btn ${activeSource === s.id ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveSource(s.id)}
-            style={{ borderRadius: 99 }}
+            style={{ borderRadius: 99, flex: 1, minWidth: '120px' }}
           >
             <span style={{ fontSize: 16 }}>{s.icon}</span>
             {s.label}

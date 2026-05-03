@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: ros-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - ros-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ros-backend
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+      MONGO_URI: mongodb://mongo:27017/restaurant-os
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      NODE_ENV: production
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+    networks:
+      - ros-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: http://localhost:5000/api
+    container_name: ros-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - ros-network
+
+volumes:
+  mongo_data:
+
+networks:
+  ros-network:
+    driver: bridge

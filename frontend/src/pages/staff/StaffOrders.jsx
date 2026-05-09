@@ -4,38 +4,41 @@ import toast from 'react-hot-toast';
 import Modal from '../../components/Modal';
 import OrderCard, { printReceipt } from '../../components/OrderCard';
 
+/* ─────────────────────────────────────────
+   STAFF ORDERS  –  Premium Responsive UI
+   ───────────────────────────────────────── */
 export default function StaffOrders() {
-  const [activeTab, setActiveTab] = useState('new');
-  const [tables, setTables] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [menuItems, setMenuItems] = useState([]);
-  const [liveOrders, setLiveOrders] = useState([]);
-  const [selTable, setSelTable] = useState(null);
-  const [selCat, setSelCat] = useState('all');
-  const [cart, setCart] = useState([]);
-  const [source, setSource] = useState('direct');
-  const [commission, setCommission] = useState(0);
+  const [activeTab, setActiveTab]       = useState('new');
+  const [tables, setTables]             = useState([]);
+  const [categories, setCategories]     = useState([]);
+  const [menuItems, setMenuItems]       = useState([]);
+  const [liveOrders, setLiveOrders]     = useState([]);
+  const [selTable, setSelTable]         = useState(null);
+  const [selCat, setSelCat]             = useState('all');
+  const [cart, setCart]                 = useState([]);
+  const [source, setSource]             = useState('direct');
+  const [commission, setCommission]     = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [notes, setNotes] = useState('');
-  const [search, setSearch] = useState('');
-  const [confirming, setConfirming] = useState(false);
+  const [notes, setNotes]               = useState('');
+  const [search, setSearch]             = useState('');
+  const [confirming, setConfirming]     = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(null);
-  const [liveFilter, setLiveFilter] = useState('active');
-  const [cartExpanded, setCartExpanded] = useState(false);
+  const [liveFilter, setLiveFilter]     = useState('active');
+  const [cartOpen, setCartOpen]         = useState(false);
+  const [showAllLive, setShowAllLive]   = useState(false);
 
-  const fetchTables = useCallback(() => api.get('/tables').then(r => setTables(r.data)), []);
+  /* ── Data fetchers ── */
+  const fetchTables     = useCallback(() => api.get('/tables').then(r => setTables(r.data)), []);
   const fetchLiveOrders = useCallback(async () => {
-    const paramMap = { active: 'status=pending', preparing: 'status=preparing', ready: 'status=ready', all: '' };
-    const r = await api.get(`/orders?${paramMap[liveFilter] || ''}&limit=100`);
+    const map = { active: 'status=pending', preparing: 'status=preparing', ready: 'status=ready', all: '' };
+    const r   = await api.get(`/orders?${map[liveFilter] || ''}&limit=100`);
     setLiveOrders(r.data);
   }, [liveFilter]);
 
   useEffect(() => {
     Promise.all([
       api.get('/tables'), api.get('/categories'), api.get('/menu-items?available=true'),
-    ]).then(([t, c, m]) => {
-      setTables(t.data); setCategories(c.data); setMenuItems(m.data);
-    });
+    ]).then(([t, c, m]) => { setTables(t.data); setCategories(c.data); setMenuItems(m.data); });
   }, []);
 
   useEffect(() => {
@@ -47,39 +50,44 @@ export default function StaffOrders() {
   }, [activeTab, fetchLiveOrders]);
 
   useEffect(() => {
-    if (source === 'direct') { setCommission(0); setSelTable(null); }
+    if (source === 'direct')  { setCommission(0);  setSelTable(null); }
     else if (source === 'zomato') setCommission(20);
     else if (source === 'swiggy') setCommission(18);
   }, [source]);
 
-  const filteredItems = menuItems.filter(i => {
+  /* ── Derived values ── */
+  const filteredItems  = menuItems.filter(i => {
     if (selCat !== 'all' && i.categoryId?._id !== selCat) return false;
     if (search && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+  const getQty         = id => cart.find(c => c.menuItemId === id)?.quantity || 0;
+  const totalAmount    = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const commissionAmt  = (totalAmount * commission) / 100;
+  const profit         = totalAmount - commissionAmt;
+  const pendingCount   = liveOrders.filter(o => o.status === 'pending').length;
 
-  const addToCart = (item) => setCart(prev => {
+  /* ── Cart helpers ── */
+  const addToCart = item => setCart(prev => {
     const ex = prev.find(c => c.menuItemId === item._id);
     if (ex) return prev.map(c => c.menuItemId === item._id ? { ...c, quantity: c.quantity + 1 } : c);
     return [...prev, { menuItemId: item._id, name: item.name, price: item.price, quantity: 1 }];
   });
-
   const changeQty = (menuItemId, delta) =>
     setCart(prev => prev.map(c => c.menuItemId === menuItemId ? { ...c, quantity: Math.max(0, c.quantity + delta) } : c).filter(c => c.quantity > 0));
 
-  const getQty = (id) => cart.find(c => c.menuItemId === id)?.quantity || 0;
-  const totalAmount = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const commissionAmt = (totalAmount * commission) / 100;
-  const profit = totalAmount - commissionAmt;
-
+  /* ── Actions ── */
   const placeOrder = async () => {
     if (!cart.length) return toast.error('Add items to the cart first');
     if (source === 'direct' && !selTable) return toast.error('Select a table for direct orders');
     setConfirming(true);
     try {
-      const res = await api.post('/orders', { tableId: selTable?._id || null, source, items: cart, commissionPercent: commission, paymentMethod, notes });
+      const res = await api.post('/orders', {
+        tableId: selTable?._id || null, source, items: cart,
+        commissionPercent: commission, paymentMethod, notes,
+      });
       setOrderSuccess(res.data);
-      setCart([]); setNotes(''); setSelTable(null);
+      setCart([]); setNotes(''); setSelTable(null); setCartOpen(false);
       fetchTables();
       toast.success('Order sent to kitchen!');
     } catch (e) {
@@ -91,344 +99,922 @@ export default function StaffOrders() {
     try { await api.put(`/orders/${id}/status`, { status }); fetchLiveOrders(); }
     catch { toast.error('Error updating status'); }
   };
-
   const updatePayment = async (id, paymentStatus, paymentMethod) => {
     try {
       await api.put(`/orders/${id}/payment`, { paymentStatus, paymentMethod });
       fetchLiveOrders();
       toast.success(`Paid via ${paymentMethod.toUpperCase()}`);
-    }
-    catch { toast.error('Error'); }
+    } catch { toast.error('Error'); }
   };
 
-  const pendingCount = liveOrders.filter(o => o.status === 'pending').length;
-
+  /* ════════════════════════════════════════
+     RENDER
+  ════════════════════════════════════════ */
   return (
-    <div className="flex flex-col h-full overflow-hidden animate-slide-up">
-      {/* Page Header */}
-      <div className="layout-header premium-header">
-        <div className="flex items-center justify-between w-full">
-          <div className="tabs">
-            <button className={`tab-btn ${activeTab === 'new' ? 'active' : ''}`} onClick={() => setActiveTab('new')}>
-              <span>📝</span> Take Order {cart.length > 0 && <span className="badge badge-orange" style={{ marginLeft: 8 }}>{cart.length}</span>}
+    <>
+      <style>{CSS}</style>
+
+      <div className="so-root">
+
+        {/* ── Top Nav Bar ── */}
+        <header className="so-header">
+          <div className="so-tabs">
+            <button
+              className={`so-tab ${activeTab === 'new' ? 'so-tab--active' : ''}`}
+              onClick={() => setActiveTab('new')}
+            >
+              <span className="so-tab-icon">📝</span>
+              <span>Take Order</span>
+              {cart.length > 0 && <span className="so-badge so-badge--orange">{cart.length}</span>}
             </button>
-            <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => setActiveTab('live')}>
-              <span>⚡</span> Live Orders {pendingCount > 0 && <span className="badge badge-orange" style={{ marginLeft: 8 }}>{pendingCount}</span>}
+            <button
+              className={`so-tab ${activeTab === 'live' ? 'so-tab--active' : ''}`}
+              onClick={() => setActiveTab('live')}
+            >
+              <span className="so-tab-icon">⚡</span>
+              <span>Live</span>
+              {pendingCount > 0 && <span className="so-badge so-badge--red">{pendingCount}</span>}
             </button>
           </div>
 
           {activeTab === 'new' && (
-            <div className="flex items-center gap-3">
-              <div className="tabs" style={{ padding: 4 }}>
-                {['direct', 'zomato', 'swiggy'].map(s => (
-                  <button key={s} 
-                    className={`tab-btn ${source === s ? 'active' : ''}`} 
-                    onClick={() => setSource(s)}
-                    style={{ fontSize: 11, padding: '6px 14px' }}
-                  >
-                    {s === 'direct' ? '🏠 Home' : s === 'zomato' ? '🔴 Zomato' : '🟠 Swiggy'}
-                  </button>
-                ))}
-              </div>
+            <div className="so-source-tabs">
+              {[
+                { id: 'direct', label: '🏠', full: 'Dine-in' },
+                { id: 'zomato', label: '🔴', full: 'Zomato' },
+                { id: 'swiggy', label: '🟠', full: 'Swiggy' },
+              ].map(s => (
+                <button
+                  key={s.id}
+                  className={`so-source-btn ${source === s.id ? 'so-source-btn--active' : ''}`}
+                  onClick={() => setSource(s.id)}
+                >
+                  {s.label} <span className="so-source-label">{s.full}</span>
+                </button>
+              ))}
             </div>
           )}
-        </div>
-      </div>
+        </header>
 
-      {activeTab === 'new' && (
-        <div className="order-grid">
-          <div className="menu-section">
-            <div className="flex flex-col flex-1 overflow-hidden h-full">
-              <div className="menu-header-sticky p-4 md:p-6 pb-0">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                  {/* Category Selection: Dropdown on Mobile, Pills on Desktop */}
-                  <div className="category-selection-container flex-1">
-                    <div className="category-pills hidden-sm">
-                      <button className={`category-pill ${selCat === 'all' ? 'active' : ''}`} onClick={() => setSelCat('all')}>All Items</button>
-                      {categories.map(c => <button key={c._id} className={`category-pill ${selCat === c._id ? 'active' : ''}`} onClick={() => setSelCat(c._id)}>{c.name}</button>)}
-                    </div>
-                    <div className="show-sm">
-                      <select className="form-select mobile-dropdown" value={selCat} onChange={e => setSelCat(e.target.value)}>
-                        <option value="all">All Categories</option>
-                        {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="search-container">
-                    <span className="search-icon">🔍</span>
-                    <input className="form-input search-input" placeholder="Search dishes..." value={search} onChange={e => setSearch(e.target.value)} />
-                  </div>
+        {/* ══════════════ NEW ORDER TAB ══════════════ */}
+        {activeTab === 'new' && (
+          <div className="so-body">
+
+            {/* ── Left: Menu ── */}
+            <section className="so-menu-col">
+
+              {/* Category + Search */}
+              <div className="so-menu-controls">
+                <div className="so-cat-scroll">
+                  <button
+                    className={`so-cat-pill ${selCat === 'all' ? 'so-cat-pill--active' : ''}`}
+                    onClick={() => setSelCat('all')}
+                  >All</button>
+                  {categories.map(c => (
+                    <button
+                      key={c._id}
+                      className={`so-cat-pill ${selCat === c._id ? 'so-cat-pill--active' : ''}`}
+                      onClick={() => setSelCat(c._id)}
+                    >{c.name}</button>
+                  ))}
                 </div>
-
-                {source === 'direct' && (
-                  <div className="table-selection-container mb-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="form-label" style={{ marginBottom: 0 }}>Select Table</div>
-                      <div className="flex gap-2 hidden-sm">
-                        <div className="badge badge-green">Available</div>
-                        <div className="badge badge-red">Occupied</div>
-                      </div>
-                    </div>
-                    
-                    {/* Desktop Table Grid */}
-                    <div className="table-grid hidden-sm">
-                      {tables.map(t => (
-                        <div key={t._id} className={`table-tile ${t.status} ${selTable?._id === t._id ? 'selected' : ''}`}
-                          onClick={() => t.status !== 'occupied' ? setSelTable(selTable?._id === t._id ? null : t) : toast.error('Table occupied')}>
-                          <div className="tile-num">{t.tableNumber}</div>
-                          <div className="tile-cap">👥 {t.capacity}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Mobile Table Dropdown */}
-                    <div className="show-sm">
-                      <select 
-                        className={`form-select mobile-dropdown ${selTable ? 'selected-item' : ''}`}
-                        value={selTable?._id || ''} 
-                        onChange={e => {
-                          const t = tables.find(t => t._id === e.target.value);
-                          if (t && t.status === 'occupied') return toast.error('Table occupied');
-                          setSelTable(t || null);
-                        }}
-                      >
-                        <option value="">Choose Table...</option>
-                        {tables.map(t => (
-                          <option key={t._id} value={t._id} disabled={t.status === 'occupied'}>
-                            Table {t.tableNumber} ({t.capacity} seats) {t.status === 'occupied' ? '• Occupied' : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
+                <div className="so-search-wrap">
+                  <span className="so-search-icon">🔍</span>
+                  <input
+                    className="so-search"
+                    placeholder="Search dishes…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                  {search && (
+                    <button className="so-search-clear" onClick={() => setSearch('')}>✕</button>
+                  )}
+                </div>
               </div>
 
-              {source !== 'direct' && (
-                <div className="px-4 md:px-6 mb-6">
-                  <div className="glass-card p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
-                      <div className="form-group">
-                        <label className="form-label">Commission %</label>
-                        <div className="flex items-center gap-2">
-                          <input type="number" className="form-input" style={{ width: 80 }} value={commission} onChange={e => setCommission(parseFloat(e.target.value) || 0)} />
-                          <span className="text-muted" style={{ fontWeight: 600 }}>%</span>
-                        </div>
-                      </div>
-                    </div>
-                    {totalAmount > 0 && (
-                      <div className="flex gap-4 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
-                        <div className="text-right">
-                          <div className="form-label">Comm.</div>
-                          <div className="menu-card-price" style={{ color: 'var(--red)', fontSize: 14 }}>₹{commissionAmt.toFixed(0)}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="form-label">Profit</div>
-                          <div className="menu-card-price" style={{ color: 'var(--green)', fontSize: 14 }}>₹{profit.toFixed(0)}</div>
-                        </div>
-                      </div>
-                    )}
+              {/* Table picker */}
+              {source === 'direct' && (
+                <div className="so-table-section">
+                  <div className="so-table-header">
+                    <span className="so-section-label">Select Table</span>
+                    <span className="so-legend">
+                      <span className="so-dot so-dot--green" /> Free
+                      <span className="so-dot so-dot--red" /> Occupied
+                    </span>
+                  </div>
+                  <div className="so-table-grid">
+                    {tables.map(t => (
+                      <button
+                        key={t._id}
+                        className={`so-table-tile so-table-tile--${t.status} ${selTable?._id === t._id ? 'so-table-tile--sel' : ''}`}
+                        onClick={() => t.status !== 'occupied'
+                          ? setSelTable(selTable?._id === t._id ? null : t)
+                          : toast.error('Table is occupied')}
+                      >
+                        <span className="so-tile-num">{t.tableNumber}</span>
+                        <span className="so-tile-cap">👥{t.capacity}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
-              
-              <div className="menu-grid flex-1 px-4 md:px-6 pb-6">
+
+              {/* Commission bar (Zomato/Swiggy) */}
+              {source !== 'direct' && (
+                <div className="so-commission-bar">
+                  <div className="so-commission-field">
+                    <label className="so-field-label">Commission %</label>
+                    <div className="so-commission-input-wrap">
+                      <input
+                        type="number"
+                        className="so-commission-input"
+                        value={commission}
+                        onChange={e => setCommission(parseFloat(e.target.value) || 0)}
+                      />
+                      <span className="so-pct">%</span>
+                    </div>
+                  </div>
+                  {totalAmount > 0 && (
+                    <div className="so-commission-stats">
+                      <div className="so-stat so-stat--red">
+                        <span>Commission</span>
+                        <strong>−₹{commissionAmt.toFixed(0)}</strong>
+                      </div>
+                      <div className="so-stat so-stat--green">
+                        <span>Profit</span>
+                        <strong>₹{profit.toFixed(0)}</strong>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Menu grid */}
+              <div className="so-menu-grid">
+                {filteredItems.length === 0 && (
+                  <div className="so-empty">
+                    <div className="so-empty-icon">🍽️</div>
+                    <p>No items found</p>
+                  </div>
+                )}
                 {filteredItems.map(item => {
                   const qty = getQty(item._id);
                   return (
-                    <div key={item._id} 
-                      className={`menu-card premium-card ${qty > 0 ? 'selected' : ''} ${!item.isAvailable ? 'unavailable' : ''}`} 
+                    <div
+                      key={item._id}
+                      className={`so-menu-card ${qty > 0 ? 'so-menu-card--sel' : ''} ${!item.isAvailable ? 'so-menu-card--unavail' : ''}`}
                       onClick={() => item.isAvailable && addToCart(item)}
                     >
-                      <div>
-                        <div className="menu-card-title">{item.name}</div>
-                        {item.description && <div className="menu-card-desc">{item.description}</div>}
+                      <div className="so-menu-card-top">
+                        <span className="so-menu-name">{item.name}</span>
+                        {item.description && <span className="so-menu-desc">{item.description}</span>}
                       </div>
-                      <div className="flex items-center justify-between mt-4">
-                        <div className="menu-card-price">₹{item.price}</div>
+                      <div className="so-menu-card-bottom">
+                        <span className="so-menu-price">₹{item.price}</span>
                         {qty > 0 ? (
-                          <div className="qty-control" onClick={e => e.stopPropagation()}>
-                            <button className="qty-btn" onClick={() => changeQty(item._id, -1)}>−</button>
-                            <span className="qty-val">{qty}</span>
-                            <button className="qty-btn" onClick={() => addToCart(item)}>+</button>
+                          <div className="so-qty" onClick={e => e.stopPropagation()}>
+                            <button className="so-qty-btn" onClick={() => changeQty(item._id, -1)}>−</button>
+                            <span className="so-qty-val">{qty}</span>
+                            <button className="so-qty-btn" onClick={() => addToCart(item)}>+</button>
                           </div>
                         ) : (
-                          <button className="btn btn-secondary btn-sm" style={{ borderRadius: 99 }}>Add</button>
+                          <button className="so-add-btn">+ Add</button>
                         )}
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
-          </div>
+            </section>
 
-          {/* Cart Section */}
-          <div className={`cart-panel glass-card ${cartExpanded ? 'expanded' : ''}`}>
-            <div className="cart-header" onClick={() => setCartExpanded(!cartExpanded)}>
-              <div className="flex items-center justify-between">
-                <div className="card-title flex items-center gap-2">
-                  <span>🛒</span>
-                  <span className="hidden-sm">{selTable ? `Table ${selTable.tableNumber}` : 'Current Order'}</span>
-                  <span className="show-sm">{selTable ? `T${selTable.tableNumber}` : 'Order'}</span>
-                  {cart.length > 0 && <span className="badge badge-orange">{cart.length}</span>}
+            {/* ── Right: Cart ── */}
+            <aside className={`so-cart ${cartOpen ? 'so-cart--open' : ''}`}>
+              <div className="so-cart-header" onClick={() => setCartOpen(v => !v)}>
+                <div className="so-cart-title">
+                  <span className="so-cart-icon">🛒</span>
+                  <span>{selTable ? `Table ${selTable.tableNumber}` : 'Order'}</span>
+                  {cart.length > 0 && <span className="so-badge so-badge--orange">{cart.length}</span>}
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="show-sm text-accent font-bold">₹{profit.toFixed(0)}</div>
-                  {cart.length > 0 && <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setCart([]) }} style={{ color: 'var(--red)', fontWeight: 700 }}>Reset</button>}
-                  <span className="show-sm text-xs">{cartExpanded ? '▼' : '▲'}</span>
+                <div className="so-cart-header-right">
+                  <span className="so-cart-total-sm">₹{profit.toFixed(0)}</span>
+                  {cart.length > 0 && (
+                    <button
+                      className="so-clear-btn"
+                      onClick={e => { e.stopPropagation(); setCart([]); }}
+                    >Clear</button>
+                  )}
+                  <span className="so-chevron">{cartOpen ? '▼' : '▲'}</span>
                 </div>
               </div>
-            </div>
 
-            <div className="cart-body">
-              {cart.length === 0 ? (
-                <div className="empty-cart-msg">
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>🥘</div>
-                  <p style={{ fontWeight: 600 }}>Empty</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {cart.map(item => (
-                    <div key={item.menuItemId} className="cart-item surface-card">
-                      <div style={{ flex: 1 }}>
-                        <div className="cart-item-name">{item.name}</div>
-                        <div className="cart-item-price">₹{item.price * item.quantity}</div>
+              <div className="so-cart-body">
+                {cart.length === 0 ? (
+                  <div className="so-cart-empty">
+                    <span style={{ fontSize: 36 }}>🥘</span>
+                    <p>Cart is empty</p>
+                  </div>
+                ) : (
+                  <div className="so-cart-list">
+                    {cart.map(item => (
+                      <div key={item.menuItemId} className="so-cart-item">
+                        <div className="so-cart-item-info">
+                          <span className="so-cart-item-name">{item.name}</span>
+                          <span className="so-cart-item-price">₹{item.price * item.quantity}</span>
+                        </div>
+                        <div className="so-qty">
+                          <button className="so-qty-btn" onClick={() => changeQty(item.menuItemId, -1)}>−</button>
+                          <span className="so-qty-val">{item.quantity}</span>
+                          <button className="so-qty-btn" onClick={() => changeQty(item.menuItemId, 1)}>+</button>
+                        </div>
                       </div>
-                      <div className="qty-control">
-                        <button className="qty-btn" onClick={() => changeQty(item.menuItemId, -1)}>−</button>
-                        <span className="qty-val-sm">{item.quantity}</span>
-                        <button className="qty-btn" onClick={() => changeQty(item.menuItemId, 1)}>+</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="cart-footer">
-              <div className="glass-card p-4 mb-4 hidden-sm">
-                <div className="flex justify-between mb-2 text-sm">
-                  <span className="text-muted">Subtotal</span>
-                  <span style={{ fontWeight: 700 }}>₹{totalAmount}</span>
-                </div>
-                {commission > 0 && (
-                  <div className="flex justify-between mb-2 text-sm">
-                    <span className="text-muted">Commission</span>
-                    <span style={{ color: 'var(--red)', fontWeight: 700 }}>−₹{commissionAmt.toFixed(0)}</span>
+                    ))}
                   </div>
                 )}
-                <div className="flex justify-between items-center mt-3 pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
-                  <span className="card-title">Total</span>
-                  <span className="menu-card-price" style={{ fontSize: 24 }}>₹{profit.toFixed(0)}</span>
-                </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                <div className="flex-1">
-                  <label className="form-label text-[10px]">Payment</label>
-                  <div className="flex gap-1">
-                    {['cash', 'upi', 'card'].map(m => (
-                      <button key={m} 
-                        className={`btn flex-1 p-2 text-[10px] ${paymentMethod === m ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => setPaymentMethod(m)}
+              <div className="so-cart-footer">
+                {/* Totals */}
+                <div className="so-totals">
+                  <div className="so-total-row">
+                    <span>Subtotal</span>
+                    <span>₹{totalAmount}</span>
+                  </div>
+                  {commission > 0 && (
+                    <div className="so-total-row so-total-row--red">
+                      <span>Commission ({commission}%)</span>
+                      <span>−₹{commissionAmt.toFixed(0)}</span>
+                    </div>
+                  )}
+                  <div className="so-total-row so-total-row--big">
+                    <span>Total</span>
+                    <span>₹{profit.toFixed(0)}</span>
+                  </div>
+                </div>
+
+                {/* Payment */}
+                <div className="so-payment-section">
+                  <span className="so-field-label">Payment Method</span>
+                  <div className="so-payment-btns">
+                    {[
+                      { id: 'cash', icon: '💵', label: 'Cash' },
+                      { id: 'upi',  icon: '📱', label: 'UPI'  },
+                      { id: 'card', icon: '💳', label: 'Card' },
+                    ].map(m => (
+                      <button
+                        key={m.id}
+                        className={`so-pay-btn ${paymentMethod === m.id ? 'so-pay-btn--active' : ''}`}
+                        onClick={() => setPaymentMethod(m.id)}
                       >
-                        {m === 'cash' ? '💵' : m === 'upi' ? '📱' : '💳'}
+                        <span>{m.icon}</span>
+                        <span className="so-pay-label">{m.label}</span>
                       </button>
                     ))}
                   </div>
                 </div>
-                <div className="flex-1 show-sm">
-                  <div className="flex justify-between items-center h-full pt-4">
-                     <span className="menu-card-price text-xl">₹{profit.toFixed(0)}</span>
+
+                <button
+                  className="so-place-btn"
+                  onClick={placeOrder}
+                  disabled={confirming || !cart.length}
+                >
+                  {confirming ? '⏳ Placing…' : `🚀 Place Order · ₹${profit.toFixed(0)}`}
+                </button>
+              </div>
+            </aside>
+
+            {/* Mobile cart toggle FAB */}
+            <button
+              className="so-cart-fab"
+              onClick={() => setCartOpen(v => !v)}
+            >
+              🛒 {cart.length > 0 && <span className="so-fab-count">{cart.length}</span>}
+              <span className="so-fab-price">₹{profit.toFixed(0)}</span>
+            </button>
+          </div>
+        )}
+
+        {/* ══════════════ LIVE ORDERS TAB ══════════════ */}
+        {activeTab === 'live' && (
+          <div className="so-live">
+            <div className="so-live-controls">
+              <div className="so-live-filters">
+                {[
+                  { id: 'active',    label: '⏳', full: 'Pending'   },
+                  { id: 'preparing', label: '🔥', full: 'Preparing' },
+                  { id: 'ready',     label: '✅', full: 'Ready'     },
+                  { id: 'all',       label: '📋', full: 'All Today' },
+                ].map(f => (
+                  <button
+                    key={f.id}
+                    className={`so-filter-btn ${liveFilter === f.id ? 'so-filter-btn--active' : ''}`}
+                    onClick={() => setLiveFilter(f.id)}
+                  >
+                    <span>{f.label}</span>
+                    <span className="so-filter-label">{f.full}</span>
+                  </button>
+                ))}
+              </div>
+              <button className="so-refresh-btn" onClick={fetchLiveOrders}>⟳ Refresh</button>
+            </div>
+
+            <div className="so-live-grid">
+              {liveOrders.length === 0 ? (
+                <div className="so-empty so-empty--live">
+                  <span className="so-empty-icon">🥡</span>
+                  <p>No orders yet</p>
+                  <span>Orders will appear here when placed</span>
+                </div>
+              ) : (
+                <>
+                  {liveOrders
+                    .slice(0, !showAllLive && typeof window !== 'undefined' && window.innerWidth < 640 ? 3 : liveOrders.length)
+                    .map(order => (
+                      <OrderCard
+                        key={order._id}
+                        order={order}
+                        onStatusChange={updateOrderStatus}
+                        onPaymentChange={updatePayment}
+                      />
+                    ))}
+                  {!showAllLive && liveOrders.length > 3 && (
+                    <button className="so-show-all-btn" onClick={() => setShowAllLive(true)}>
+                      Show all {liveOrders.length} orders ↓
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════ ORDER SUCCESS MODAL ══════════════ */}
+        {orderSuccess && (
+          <Modal
+            title="✅ Order Placed!"
+            onClose={() => setOrderSuccess(null)}
+            footer={
+              <div className="so-modal-footer">
+                <button className="so-modal-btn so-modal-btn--sec" onClick={() => printReceipt(orderSuccess)}>
+                  🖨️ Print Receipt
+                </button>
+                <button className="so-modal-btn so-modal-btn--pri" onClick={() => setOrderSuccess(null)}>
+                  Next Order →
+                </button>
+              </div>
+            }
+          >
+            <div className="so-success-body">
+              <div className="so-success-emoji">🎉</div>
+              <div className="so-success-id">
+                Order #{orderSuccess._id.slice(-6).toUpperCase()}
+              </div>
+              <p className="so-success-meta">
+                {orderSuccess.tableNumber ? `Table ${orderSuccess.tableNumber}` : orderSuccess.source}
+                {' · '}{orderSuccess.items.length} item{orderSuccess.items.length !== 1 ? 's' : ''}
+              </p>
+              <div className="so-success-items">
+                {orderSuccess.items.map((i, idx) => (
+                  <div key={idx} className="so-success-item">
+                    <span>{i.quantity}× {i.name}</span>
+                    <span>₹{i.price * i.quantity}</span>
                   </div>
+                ))}
+                <div className="so-success-total">
+                  <span>Total Paid</span>
+                  <strong>₹{orderSuccess.totalAmount}</strong>
                 </div>
               </div>
-
-              <button className="btn btn-primary btn-lg w-full" onClick={placeOrder} 
-                disabled={confirming || !cart.length}
-                style={{ height: 50, fontSize: 16, borderRadius: 'var(--radius)' }}
-              >
-                {confirming ? '...' : `Place Order`}
-              </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'live' && (
-        <div className="p-8 flex-1 overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between mb-8">
-            <div className="tabs">
-              {[{ id: 'active', label: '⏳ Pending' }, { id: 'preparing', label: '🔥 Preparing' }, { id: 'ready', label: '✓ Ready' }, { id: 'all', label: 'All Today' }].map(f => (
-                <button key={f.id} className={`tab-btn ${liveFilter === f.id ? 'active' : ''}`} onClick={() => setLiveFilter(f.id)}>{f.label}</button>
-              ))}
-            </div>
-            <button className="btn btn-secondary" onClick={fetchLiveOrders}>⟳ Refresh Feed</button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto pr-2">
-            {liveOrders.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '100px 0', opacity: 0.3 }}>
-                <div style={{ fontSize: 64, marginBottom: 20 }}>🥡</div>
-                <h3 style={{ fontSize: 24, fontWeight: 700 }}>No orders found</h3>
-                <p>When orders are placed, they will appear here</p>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 24 }}>
-                {liveOrders.map(order => <OrderCard key={order._id} order={order} onStatusChange={updateOrderStatus} onPaymentChange={updatePayment} />)}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {orderSuccess && (
-        <Modal title="✅ Order Placed Successfully" onClose={() => setOrderSuccess(null)}
-          footer={
-            <div className="flex gap-3 w-full">
-              <button className="btn btn-secondary btn-lg flex-1" onClick={() => printReceipt(orderSuccess)}>🖨️ Print Receipt</button>
-              <button className="btn btn-primary btn-lg flex-1" onClick={() => setOrderSuccess(null)}>Next Order</button>
-            </div>
-          }>
-          <div style={{ textAlign: 'center', padding: '32px 0' }}>
-            <div className="animate-bounce" style={{ fontSize: 72, marginBottom: 20 }}>🎉</div>
-            <div className="card-title" style={{ fontSize: 24, marginBottom: 8 }}>Order #{orderSuccess._id.slice(-6).toUpperCase()}</div>
-            <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
-              {orderSuccess.tableNumber ? `Table ${orderSuccess.tableNumber}` : orderSuccess.source} • {orderSuccess.items.length} Items
-            </p>
-          </div>
-          <div className="surface-card p-6">
-            <div className="flex flex-col gap-3">
-              {orderSuccess.items.map((i, idx) => (
-                <div key={idx} className="flex justify-between items-center">
-                  <span style={{ fontWeight: 500 }}>{i.quantity}× {i.name}</span>
-                  <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>₹{i.price * i.quantity}</span>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between items-center mt-6 pt-6" style={{ borderTop: '1px solid var(--border)' }}>
-              <span className="card-title" style={{ fontSize: 18 }}>Total Paid</span>
-              <span className="menu-card-price" style={{ fontSize: 24 }}>₹{orderSuccess.totalAmount}</span>
-            </div>
-          </div>
-        </Modal>
-      )}
-      
-      <style>{`
-        .w-full { width: 100%; }
-        .text-right { text-align: right; }
-        .flex-1 { flex: 1; }
-        .animate-bounce {
-          animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-          0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
-          40% {transform: translateY(-20px);}
-          60% {transform: translateY(-10px);}
-        }
-      `}</style>
-    </div>
+          </Modal>
+        )}
+      </div>
+    </>
   );
 }
+
+/* ════════════════════════════════════════════
+   STYLES
+════════════════════════════════════════════ */
+const CSS = `
+  /* ── Tokens ── */
+  :root {
+    --so-bg:         #0f1117;
+    --so-surface:    #181c27;
+    --so-card:       #1e2334;
+    --so-border:     rgba(255,255,255,0.07);
+    --so-accent:     #f97316;
+    --so-accent2:    #fb923c;
+    --so-green:      #22c55e;
+    --so-red:        #ef4444;
+    --so-blue:       #3b82f6;
+    --so-text:       #f1f5f9;
+    --so-muted:      #64748b;
+    --so-muted2:     #94a3b8;
+    --so-radius:     14px;
+    --so-radius-sm:  8px;
+    --so-shadow:     0 4px 24px rgba(0,0,0,0.4);
+    --so-font:       'DM Sans', system-ui, sans-serif;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+  /* ── Root layout ── */
+  .so-root {
+    font-family: var(--so-font);
+    background: var(--so-bg);
+    color: var(--so-text);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Header ── */
+  .so-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--so-surface);
+    border-bottom: 1px solid var(--so-border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .so-tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 4px; }
+
+  .so-tab {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px; border: none;
+    background: transparent; color: var(--so-muted2);
+    font-family: var(--so-font); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all .2s;
+  }
+  .so-tab-icon { font-size: 15px; }
+  .so-tab:hover { color: var(--so-text); background: rgba(255,255,255,0.06); }
+  .so-tab--active { background: var(--so-accent) !important; color: #fff !important; }
+
+  .so-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; border-radius: 99px;
+    font-size: 11px; font-weight: 700; padding: 0 6px;
+  }
+  .so-badge--orange { background: var(--so-accent); color: #fff; }
+  .so-badge--red    { background: var(--so-red);    color: #fff; }
+
+  .so-source-tabs { display: flex; gap: 4px; }
+  .so-source-btn {
+    display: flex; align-items: center; gap: 4px;
+    padding: 7px 12px; border-radius: 8px; border: 1px solid var(--so-border);
+    background: var(--so-card); color: var(--so-muted2);
+    font-family: var(--so-font); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all .2s;
+  }
+  .so-source-btn:hover { border-color: var(--so-accent); color: var(--so-text); }
+  .so-source-btn--active { background: var(--so-accent); border-color: var(--so-accent); color: #fff; }
+  .so-source-label { display: inline; }
+
+  /* ── Body: new order layout ── */
+  .so-body {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Menu column ── */
+  .so-menu-col {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid var(--so-border);
+  }
+
+  .so-menu-controls {
+    padding: 14px 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  /* Categories */
+  .so-cat-scroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .so-cat-scroll::-webkit-scrollbar { display: none; }
+  .so-cat-pill {
+    flex-shrink: 0; padding: 6px 14px;
+    border-radius: 99px; border: 1px solid var(--so-border);
+    background: var(--so-card); color: var(--so-muted2);
+    font-family: var(--so-font); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all .18s; white-space: nowrap;
+  }
+  .so-cat-pill:hover { border-color: var(--so-accent); color: var(--so-text); }
+  .so-cat-pill--active { background: var(--so-accent); border-color: var(--so-accent); color: #fff; }
+
+  /* Search */
+  .so-search-wrap {
+    position: relative; display: flex; align-items: center;
+  }
+  .so-search-icon { position: absolute; left: 12px; font-size: 14px; pointer-events: none; }
+  .so-search {
+    width: 100%; padding: 9px 36px 9px 36px;
+    border-radius: var(--so-radius-sm); border: 1px solid var(--so-border);
+    background: var(--so-card); color: var(--so-text);
+    font-family: var(--so-font); font-size: 13px;
+    outline: none; transition: border .2s;
+  }
+  .so-search:focus { border-color: var(--so-accent); }
+  .so-search::placeholder { color: var(--so-muted); }
+  .so-search-clear {
+    position: absolute; right: 10px;
+    background: none; border: none; color: var(--so-muted); cursor: pointer; font-size: 12px;
+    padding: 4px;
+  }
+
+  /* Table section */
+  .so-table-section {
+    margin: 12px 16px 0;
+    background: var(--so-card);
+    border: 1px solid var(--so-border);
+    border-radius: var(--so-radius);
+    padding: 12px 14px;
+    flex-shrink: 0;
+  }
+  .so-table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .so-section-label { font-size: 11px; font-weight: 700; color: var(--so-muted2); text-transform: uppercase; letter-spacing: .06em; }
+  .so-legend { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--so-muted); }
+  .so-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+  .so-dot--green { background: var(--so-green); }
+  .so-dot--red   { background: var(--so-red); }
+  .so-table-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .so-table-tile {
+    width: 58px; height: 58px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: var(--so-radius-sm); border: 1.5px solid var(--so-border);
+    background: var(--so-surface); cursor: pointer;
+    transition: all .18s; gap: 2px;
+  }
+  .so-table-tile--available { border-color: rgba(34,197,94,.3); }
+  .so-table-tile--available:hover { border-color: var(--so-green); background: rgba(34,197,94,.08); }
+  .so-table-tile--occupied { opacity: .45; cursor: not-allowed; border-color: rgba(239,68,68,.3); }
+  .so-table-tile--sel { border-color: var(--so-accent) !important; background: rgba(249,115,22,.15) !important; }
+  .so-tile-num { font-size: 16px; font-weight: 800; color: var(--so-text); line-height: 1; }
+  .so-tile-cap { font-size: 10px; color: var(--so-muted); }
+
+  /* Commission bar */
+  .so-commission-bar {
+    margin: 12px 16px 0;
+    background: var(--so-card);
+    border: 1px solid var(--so-border);
+    border-radius: var(--so-radius);
+    padding: 12px 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    flex-shrink: 0;
+  }
+  .so-commission-field { display: flex; flex-direction: column; gap: 4px; }
+  .so-field-label { font-size: 10px; font-weight: 700; color: var(--so-muted2); text-transform: uppercase; letter-spacing: .06em; }
+  .so-commission-input-wrap { display: flex; align-items: center; gap: 6px; }
+  .so-commission-input {
+    width: 72px; padding: 7px 10px;
+    border-radius: var(--so-radius-sm); border: 1px solid var(--so-border);
+    background: var(--so-surface); color: var(--so-text);
+    font-family: var(--so-font); font-size: 14px; font-weight: 700;
+    outline: none; text-align: center;
+  }
+  .so-pct { font-weight: 700; color: var(--so-muted2); }
+  .so-commission-stats { display: flex; gap: 20px; }
+  .so-stat { display: flex; flex-direction: column; align-items: flex-end; font-size: 11px; }
+  .so-stat span { color: var(--so-muted); }
+  .so-stat strong { font-size: 15px; font-weight: 800; }
+  .so-stat--red strong { color: var(--so-red); }
+  .so-stat--green strong { color: var(--so-green); }
+
+  /* Menu grid */
+  .so-menu-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px 80px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    align-content: start;
+  }
+  .so-menu-grid::-webkit-scrollbar { width: 4px; }
+  .so-menu-grid::-webkit-scrollbar-track { background: transparent; }
+  .so-menu-grid::-webkit-scrollbar-thumb { background: var(--so-border); border-radius: 99px; }
+
+  .so-menu-card {
+    background: var(--so-card);
+    border: 1.5px solid var(--so-border);
+    border-radius: var(--so-radius);
+    padding: 12px;
+    cursor: pointer;
+    transition: all .18s;
+    display: flex; flex-direction: column; justify-content: space-between;
+    min-height: 90px;
+  }
+  .so-menu-card:hover:not(.so-menu-card--unavail) { border-color: var(--so-accent); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(249,115,22,.12); }
+  .so-menu-card--sel { border-color: var(--so-accent); background: rgba(249,115,22,.07); }
+  .so-menu-card--unavail { opacity: .4; cursor: not-allowed; }
+  .so-menu-card-top { display: flex; flex-direction: column; gap: 3px; }
+  .so-menu-name { font-size: 13px; font-weight: 700; color: var(--so-text); line-height: 1.3; }
+  .so-menu-desc { font-size: 11px; color: var(--so-muted); line-height: 1.3; }
+  .so-menu-card-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+  .so-menu-price { font-size: 15px; font-weight: 800; color: var(--so-accent); }
+  .so-add-btn {
+    padding: 5px 12px; border-radius: 99px;
+    border: 1px solid var(--so-accent); color: var(--so-accent);
+    background: transparent; font-family: var(--so-font); font-size: 11px; font-weight: 700;
+    cursor: pointer; transition: all .15s;
+  }
+  .so-add-btn:hover { background: var(--so-accent); color: #fff; }
+
+  /* Qty control */
+  .so-qty {
+    display: flex; align-items: center; gap: 2px;
+    background: rgba(249,115,22,.12); border-radius: 99px; padding: 2px;
+  }
+  .so-qty-btn {
+    width: 26px; height: 26px; border-radius: 99px; border: none;
+    background: var(--so-accent); color: #fff;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s; line-height: 1;
+  }
+  .so-qty-btn:hover { background: var(--so-accent2); transform: scale(1.08); }
+  .so-qty-val { font-size: 13px; font-weight: 800; color: var(--so-accent); min-width: 22px; text-align: center; }
+
+  /* ── Cart panel ── */
+  .so-cart {
+    display: flex; flex-direction: column;
+    background: var(--so-surface);
+    overflow: hidden;
+  }
+  .so-cart-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--so-border);
+    cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .so-cart-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+  .so-cart-icon { font-size: 18px; }
+  .so-cart-header-right { display: flex; align-items: center; gap: 8px; }
+  .so-cart-total-sm { font-size: 16px; font-weight: 800; color: var(--so-accent); }
+  .so-clear-btn {
+    background: none; border: none; color: var(--so-red);
+    font-family: var(--so-font); font-size: 12px; font-weight: 700;
+    cursor: pointer; padding: 4px 8px; border-radius: 6px;
+    transition: background .15s;
+  }
+  .so-clear-btn:hover { background: rgba(239,68,68,.1); }
+  .so-chevron { font-size: 10px; color: var(--so-muted); display: none; }
+
+  .so-cart-body { flex: 1; overflow-y: auto; padding: 12px; }
+  .so-cart-body::-webkit-scrollbar { width: 3px; }
+  .so-cart-body::-webkit-scrollbar-thumb { background: var(--so-border); border-radius: 99px; }
+  .so-cart-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; height: 120px; color: var(--so-muted); font-size: 13px;
+  }
+  .so-cart-list { display: flex; flex-direction: column; gap: 6px; }
+  .so-cart-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--so-card); border-radius: var(--so-radius-sm);
+    padding: 10px 12px; gap: 8px;
+  }
+  .so-cart-item-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .so-cart-item-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .so-cart-item-price { font-size: 13px; font-weight: 700; color: var(--so-accent); }
+
+  .so-cart-footer {
+    padding: 12px;
+    border-top: 1px solid var(--so-border);
+    flex-shrink: 0;
+  }
+
+  .so-totals { background: var(--so-card); border-radius: var(--so-radius-sm); padding: 12px; margin-bottom: 12px; }
+  .so-total-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--so-muted2); padding: 3px 0;
+  }
+  .so-total-row--red span { color: var(--so-red); }
+  .so-total-row--red { color: var(--so-red); }
+  .so-total-row--big {
+    font-size: 16px; font-weight: 800; color: var(--so-text);
+    border-top: 1px solid var(--so-border); margin-top: 8px; padding-top: 8px;
+  }
+  .so-total-row--big span:last-child { color: var(--so-accent); font-size: 20px; }
+
+  .so-payment-section { margin-bottom: 12px; }
+  .so-payment-btns { display: flex; gap: 6px; margin-top: 6px; }
+  .so-pay-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 6px; border-radius: var(--so-radius-sm);
+    border: 1.5px solid var(--so-border); background: var(--so-card);
+    color: var(--so-muted2); font-family: var(--so-font); font-size: 16px;
+    cursor: pointer; transition: all .18s;
+  }
+  .so-pay-btn:hover { border-color: var(--so-accent); color: var(--so-text); }
+  .so-pay-btn--active { border-color: var(--so-accent); background: rgba(249,115,22,.12); color: var(--so-accent); }
+  .so-pay-label { font-size: 10px; font-weight: 700; }
+
+  .so-place-btn {
+    width: 100%; padding: 14px;
+    border-radius: var(--so-radius); border: none;
+    background: var(--so-accent);
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: #fff; font-family: var(--so-font); font-size: 14px; font-weight: 800;
+    cursor: pointer; transition: all .2s;
+    box-shadow: 0 4px 16px rgba(249,115,22,.35);
+  }
+  .so-place-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(249,115,22,.5); }
+  .so-place-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Mobile cart FAB */
+  .so-cart-fab {
+    display: none;
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: #fff; border: none; border-radius: 99px;
+    padding: 12px 24px; font-family: var(--so-font); font-size: 15px; font-weight: 800;
+    cursor: pointer; z-index: 50;
+    box-shadow: 0 6px 24px rgba(249,115,22,.5);
+    align-items: center; gap: 8px;
+  }
+  .so-fab-count {
+    background: rgba(255,255,255,.25); border-radius: 99px;
+    padding: 2px 8px; font-size: 13px; font-weight: 700;
+  }
+  .so-fab-price { font-size: 16px; font-weight: 800; }
+
+  /* ── Live tab ── */
+  .so-live {
+    flex: 1; overflow: hidden;
+    display: flex; flex-direction: column;
+    padding: 16px;
+    gap: 16px;
+  }
+  .so-live-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; flex-wrap: wrap; }
+  .so-live-filters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .so-live-filters::-webkit-scrollbar { display: none; }
+  .so-filter-btn {
+    display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+    padding: 8px 14px; border-radius: var(--so-radius-sm);
+    border: 1px solid var(--so-border); background: var(--so-card);
+    color: var(--so-muted2); font-family: var(--so-font); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all .18s;
+  }
+  .so-filter-btn:hover { border-color: var(--so-accent); color: var(--so-text); }
+  .so-filter-btn--active { background: var(--so-accent); border-color: var(--so-accent); color: #fff; }
+  .so-filter-label { display: inline; }
+
+  .so-refresh-btn {
+    padding: 8px 16px; border-radius: var(--so-radius-sm);
+    border: 1px solid var(--so-border); background: var(--so-card);
+    color: var(--so-muted2); font-family: var(--so-font); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all .18s; flex-shrink: 0;
+  }
+  .so-refresh-btn:hover { border-color: var(--so-blue); color: var(--so-text); }
+
+  .so-live-grid {
+    flex: 1; overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+    align-content: start;
+    padding-right: 4px;
+  }
+  .so-live-grid::-webkit-scrollbar { width: 4px; }
+  .so-live-grid::-webkit-scrollbar-thumb { background: var(--so-border); border-radius: 99px; }
+
+  .so-show-all-btn {
+    grid-column: 1 / -1;
+    padding: 14px; border-radius: var(--so-radius);
+    border: 1px dashed var(--so-border); background: none;
+    color: var(--so-muted2); font-family: var(--so-font); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all .18s;
+  }
+  .so-show-all-btn:hover { border-color: var(--so-accent); color: var(--so-accent); }
+
+  /* Empty states */
+  .so-empty {
+    grid-column: 1 / -1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; padding: 60px 0; color: var(--so-muted);
+  }
+  .so-empty-icon { font-size: 48px; }
+  .so-empty p { font-size: 16px; font-weight: 700; color: var(--so-muted2); margin: 0; }
+  .so-empty span { font-size: 13px; }
+  .so-empty--live p { font-size: 20px; }
+
+  /* Success modal */
+  .so-success-body { display: flex; flex-direction: column; align-items: center; padding: 24px 0 0; }
+  .so-success-emoji { font-size: 60px; animation: soBounce 1.5s infinite; }
+  @keyframes soBounce {
+    0%,100% { transform: translateY(0); }
+    40%      { transform: translateY(-14px); }
+    70%      { transform: translateY(-6px); }
+  }
+  .so-success-id { font-size: 22px; font-weight: 800; margin: 12px 0 4px; }
+  .so-success-meta { font-size: 13px; color: var(--so-muted2); margin: 0 0 20px; }
+  .so-success-items {
+    width: 100%; background: var(--so-card);
+    border-radius: var(--so-radius); padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .so-success-item { display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; }
+  .so-success-total {
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--so-border); padding-top: 12px;
+    margin-top: 4px; font-size: 15px; font-weight: 700;
+  }
+  .so-success-total strong { font-size: 22px; color: var(--so-accent); }
+
+  .so-modal-footer { display: flex; gap: 10px; width: 100%; }
+  .so-modal-btn {
+    flex: 1; padding: 13px; border-radius: var(--so-radius); border: none;
+    font-family: var(--so-font); font-size: 14px; font-weight: 700; cursor: pointer; transition: all .18s;
+  }
+  .so-modal-btn--sec { background: var(--so-card); border: 1px solid var(--so-border); color: var(--so-text); }
+  .so-modal-btn--sec:hover { border-color: var(--so-accent); }
+  .so-modal-btn--pri { background: linear-gradient(135deg, #f97316, #ea580c); color: #fff; box-shadow: 0 4px 14px rgba(249,115,22,.35); }
+  .so-modal-btn--pri:hover { box-shadow: 0 6px 20px rgba(249,115,22,.5); transform: translateY(-1px); }
+
+  /* ════════════════════════════════════════
+     RESPONSIVE — md screens (≤ 900px)
+  ════════════════════════════════════════ */
+  @media (max-width: 900px) {
+    .so-body { grid-template-columns: 1fr; }
+    .so-menu-col { border-right: none; }
+    .so-menu-grid { padding-bottom: 100px; }
+
+    /* Cart becomes a bottom sheet on md */
+    .so-cart {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
+      max-height: 80vh; border-radius: 18px 18px 0 0;
+      border-top: 1px solid var(--so-border);
+      box-shadow: 0 -8px 40px rgba(0,0,0,.5);
+      transform: translateY(calc(100% - 60px));
+      transition: transform .32s cubic-bezier(.32,1,.5,1);
+    }
+    .so-cart--open { transform: translateY(0); }
+    .so-cart-header { border-radius: 18px 18px 0 0; }
+    .so-chevron { display: inline !important; }
+    .so-cart-total-sm { display: inline; }
+    .so-cart-fab { display: none !important; } /* sheet handles it */
+  }
+
+  /* ════════════════════════════════════════
+     RESPONSIVE — sm screens (≤ 640px)
+  ════════════════════════════════════════ */
+  @media (max-width: 640px) {
+    .so-header { padding: 8px 12px; gap: 8px; }
+    .so-tab { padding: 6px 10px; font-size: 12px; }
+    .so-tab-icon { font-size: 14px; }
+    .so-source-label { display: none; } /* show only emoji on tiny screens */
+    .so-source-btn { padding: 6px 10px; font-size: 14px; }
+
+    .so-menu-controls { padding: 10px 12px 0; gap: 8px; }
+    .so-menu-grid {
+      grid-template-columns: 1fr 1fr;
+      padding: 10px 12px 110px;
+      gap: 8px;
+    }
+    .so-menu-card { padding: 10px; min-height: 80px; }
+    .so-menu-name { font-size: 12px; }
+
+    .so-table-section { margin: 10px 12px 0; padding: 10px 12px; }
+    .so-table-tile { width: 52px; height: 52px; }
+    .so-tile-num { font-size: 14px; }
+
+    .so-commission-bar { margin: 10px 12px 0; flex-wrap: wrap; }
+
+    /* On very small screens, hide the cart panel entirely, use FAB */
+    .so-cart { display: none; }
+    .so-cart--open {
+      display: flex;
+      transform: translateY(0);
+    }
+    .so-cart-fab { display: flex !important; }
+
+    /* Live tab */
+    .so-live { padding: 12px; gap: 12px; }
+    .so-live-grid { grid-template-columns: 1fr; }
+    .so-filter-label { display: none; }
+    .so-filter-btn { padding: 8px 10px; font-size: 16px; }
+  }
+`;

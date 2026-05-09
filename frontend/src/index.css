@@ -248,9 +248,20 @@ body {
   margin-bottom: 16px;
 }
 
-.hidden-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-.hidden-scroll::-webkit-scrollbar { display: none; }
-.overflow-x-auto { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
+.hidden-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hidden-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.overflow-x-auto {
+  overflow-x: auto;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
 
 /* Buttons */
 .btn {
@@ -525,7 +536,8 @@ body {
 @media (max-width: 1024px) {
   .order-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 300px; /* Split screen: Menu top, Cart bottom */
+    grid-template-rows: 1fr 300px;
+    /* Split screen: Menu top, Cart bottom */
     height: calc(100vh - 70px);
   }
 
@@ -538,7 +550,8 @@ body {
   }
 
   .cart-panel.expanded {
-    grid-row: 1 / span 2; /* Full screen when expanded */
+    grid-row: 1 / span 2;
+    /* Full screen when expanded */
     z-index: 100;
   }
 
@@ -824,6 +837,7 @@ body {
   .hidden-sm {
     display: none !important;
   }
+
   .show-sm {
     display: block !important;
   }
@@ -848,6 +862,7 @@ body {
 .text-accent {
   color: var(--accent);
 }
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1302,6 +1317,7 @@ body {
   margin-bottom: 16px;
   opacity: 0.5;
 }
+
 .search-container {
   position: relative;
   width: 300px;
@@ -1341,7 +1357,9 @@ body {
 }
 
 @media (max-width: 1024px) {
-  .dashboard-main-grid, .dashboard-split-grid {
+
+  .dashboard-main-grid,
+  .dashboard-split-grid {
     grid-template-columns: 1fr;
     gap: 24px;
   }
@@ -1361,6 +1379,7 @@ body {
     align-items: flex-start;
     gap: 20px;
   }
+
   .w-full-mobile {
     width: 100%;
   }
@@ -1380,6 +1399,12 @@ body {
 }
 
 @media (max-width: 768px) {
-  .flex-wrap-mobile { flex-wrap: wrap; }
-  .flex-1-mobile { flex: 1; min-width: calc(50% - 12px); }
+  .flex-wrap-mobile {
+    flex-wrap: wrap;
+  }
+
+  .flex-1-mobile {
+    flex: 1;
+    min-width: calc(50% - 12px);
+  }
 }

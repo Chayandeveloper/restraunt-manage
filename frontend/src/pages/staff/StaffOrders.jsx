@@ -137,87 +137,120 @@ export default function StaffOrders() {
 
       {activeTab === 'new' && (
         <div className="order-grid">
-          {/* Menu Section */}
-          <div className="menu-section p-6">
-            <div className="flex flex-col flex-1 overflow-hidden">
-          <div className="flex items-center justify-between mb-8">
-            <div className="category-pills">
-              <button className={`category-pill ${selCat === 'all' ? 'active' : ''}`} onClick={() => setSelCat('all')}>All Items</button>
-              {categories.map(c => <button key={c._id} className={`category-pill ${selCat === c._id ? 'active' : ''}`} onClick={() => setSelCat(c._id)}>{c.name}</button>)}
-            </div>
-            
-            <div className="search-container">
-              <span className="search-icon">🔍</span>
-              <input className="form-input search-input" placeholder="Search dishes..." value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-          </div>
-
-              {source === 'direct' && (
-                <div className="surface-card p-6 mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="form-label">Select Table</div>
-                    <div className="flex gap-2">
-                      <div className="badge badge-green">Available</div>
-                      <div className="badge badge-red">Occupied</div>
+          <div className="menu-section">
+            <div className="flex flex-col flex-1 overflow-hidden h-full">
+              <div className="menu-header-sticky p-4 md:p-6 pb-0">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                  {/* Category Selection: Dropdown on Mobile, Pills on Desktop */}
+                  <div className="category-selection-container flex-1">
+                    <div className="category-pills hidden-sm">
+                      <button className={`category-pill ${selCat === 'all' ? 'active' : ''}`} onClick={() => setSelCat('all')}>All Items</button>
+                      {categories.map(c => <button key={c._id} className={`category-pill ${selCat === c._id ? 'active' : ''}`} onClick={() => setSelCat(c._id)}>{c.name}</button>)}
+                    </div>
+                    <div className="show-sm">
+                      <select className="form-select mobile-dropdown" value={selCat} onChange={e => setSelCat(e.target.value)}>
+                        <option value="all">All Categories</option>
+                        {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                      </select>
                     </div>
                   </div>
-                  <div className="table-grid">
-                    {tables.map(t => (
-                      <div key={t._id} className={`table-tile ${t.status} ${selTable?._id === t._id ? 'selected' : ''}`}
-                        onClick={() => t.status !== 'occupied' ? setSelTable(selTable?._id === t._id ? null : t) : toast.error('Table occupied')}>
-                        <div className="tile-num">{t.tableNumber}</div>
-                        <div className="tile-cap">👥 {t.capacity}</div>
-                      </div>
-                    ))}
+                  
+                  <div className="search-container">
+                    <span className="search-icon">🔍</span>
+                    <input className="form-input search-input" placeholder="Search dishes..." value={search} onChange={e => setSearch(e.target.value)} />
                   </div>
                 </div>
-              )}
 
-              {source !== 'direct' && (
-                <div className="glass-card p-5 mb-6 flex items-center justify-between">
-                  <div className="flex items-center gap-6">
-                    <div className="form-group">
-                      <label className="form-label">Commission %</label>
-                      <div className="flex items-center gap-2">
-                        <input type="number" className="form-input" style={{ width: 80 }} value={commission} onChange={e => setCommission(parseFloat(e.target.value) || 0)} />
-                        <span className="text-muted" style={{ fontWeight: 600 }}>%</span>
+                {source === 'direct' && (
+                  <div className="table-selection-container mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="form-label" style={{ marginBottom: 0 }}>Select Table</div>
+                      <div className="flex gap-2 hidden-sm">
+                        <div className="badge badge-green">Available</div>
+                        <div className="badge badge-red">Occupied</div>
                       </div>
+                    </div>
+                    
+                    {/* Desktop Table Grid */}
+                    <div className="table-grid hidden-sm">
+                      {tables.map(t => (
+                        <div key={t._id} className={`table-tile ${t.status} ${selTable?._id === t._id ? 'selected' : ''}`}
+                          onClick={() => t.status !== 'occupied' ? setSelTable(selTable?._id === t._id ? null : t) : toast.error('Table occupied')}>
+                          <div className="tile-num">{t.tableNumber}</div>
+                          <div className="tile-cap">👥 {t.capacity}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Mobile Table Dropdown */}
+                    <div className="show-sm">
+                      <select 
+                        className={`form-select mobile-dropdown ${selTable ? 'selected-item' : ''}`}
+                        value={selTable?._id || ''} 
+                        onChange={e => {
+                          const t = tables.find(t => t._id === e.target.value);
+                          if (t && t.status === 'occupied') return toast.error('Table occupied');
+                          setSelTable(t || null);
+                        }}
+                      >
+                        <option value="">Choose Table...</option>
+                        {tables.map(t => (
+                          <option key={t._id} value={t._id} disabled={t.status === 'occupied'}>
+                            Table {t.tableNumber} ({t.capacity} seats) {t.status === 'occupied' ? '• Occupied' : ''}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
-                  {totalAmount > 0 && (
-                    <div className="flex gap-6">
-                      <div className="text-right">
-                        <div className="form-label">Commission Amt</div>
-                        <div className="menu-card-price" style={{ color: 'var(--red)', fontSize: 16 }}>₹{commissionAmt.toFixed(0)}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="form-label">Net Profit</div>
-                        <div className="menu-card-price" style={{ color: 'var(--green)' }}>₹{profit.toFixed(0)}</div>
+                )}
+              </div>
+
+              {source !== 'direct' && (
+                <div className="px-4 md:px-6 mb-6">
+                  <div className="glass-card p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-6">
+                      <div className="form-group">
+                        <label className="form-label">Commission %</label>
+                        <div className="flex items-center gap-2">
+                          <input type="number" className="form-input" style={{ width: 80 }} value={commission} onChange={e => setCommission(parseFloat(e.target.value) || 0)} />
+                          <span className="text-muted" style={{ fontWeight: 600 }}>%</span>
+                        </div>
                       </div>
                     </div>
-                  )}
+                    {totalAmount > 0 && (
+                      <div className="flex gap-4 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
+                        <div className="text-right">
+                          <div className="form-label">Comm.</div>
+                          <div className="menu-card-price" style={{ color: 'var(--red)', fontSize: 14 }}>₹{commissionAmt.toFixed(0)}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="form-label">Profit</div>
+                          <div className="menu-card-price" style={{ color: 'var(--green)', fontSize: 14 }}>₹{profit.toFixed(0)}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               
-              <div className="menu-grid" style={{ padding: '4px' }}>
+              <div className="menu-grid flex-1 px-4 md:px-6 pb-6">
                 {filteredItems.map(item => {
                   const qty = getQty(item._id);
                   return (
                     <div key={item._id} 
                       className={`menu-card premium-card ${qty > 0 ? 'selected' : ''} ${!item.isAvailable ? 'unavailable' : ''}`} 
                       onClick={() => item.isAvailable && addToCart(item)}
-                      style={{ padding: 20 }}
                     >
                       <div>
-                        <div className="menu-card-title" style={{ fontSize: 16 }}>{item.name}</div>
-                        {item.description && <div className="menu-card-desc" style={{ fontSize: 13, marginTop: 4 }}>{item.description}</div>}
+                        <div className="menu-card-title">{item.name}</div>
+                        {item.description && <div className="menu-card-desc">{item.description}</div>}
                       </div>
-                      <div className="flex items-center justify-between mt-6">
-                        <div className="menu-card-price" style={{ fontSize: 20 }}>₹{item.price}</div>
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="menu-card-price">₹{item.price}</div>
                         {qty > 0 ? (
                           <div className="qty-control" onClick={e => e.stopPropagation()}>
                             <button className="qty-btn" onClick={() => changeQty(item._id, -1)}>−</button>
-                            <span style={{ fontWeight: 800, fontSize: 14, minWidth: 24, textAlign: 'center' }}>{qty}</span>
+                            <span className="qty-val">{qty}</span>
                             <button className="qty-btn" onClick={() => addToCart(item)}>+</button>
                           </div>
                         ) : (
@@ -232,32 +265,40 @@ export default function StaffOrders() {
           </div>
 
           {/* Cart Section */}
-          <div className={`cart-panel glass-card ${cartExpanded ? 'expanded' : ''}`} style={{ borderLeft: 'none', borderRadius: 0 }}>
-            <div className="cart-header" onClick={() => window.innerWidth <= 1024 && setCartExpanded(!cartExpanded)} style={{ padding: 24 }}>
+          <div className={`cart-panel glass-card ${cartExpanded ? 'expanded' : ''}`}>
+            <div className="cart-header" onClick={() => setCartExpanded(!cartExpanded)}>
               <div className="flex items-center justify-between">
-                <div className="card-title" style={{ fontSize: 18 }}>🛒 {selTable ? `Table ${selTable.tableNumber}` : 'Current Order'}</div>
-                {cart.length > 0 && <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setCart([]) }} style={{ color: 'var(--red)', fontWeight: 700 }}>Reset</button>}
+                <div className="card-title flex items-center gap-2">
+                  <span>🛒</span>
+                  <span className="hidden-sm">{selTable ? `Table ${selTable.tableNumber}` : 'Current Order'}</span>
+                  <span className="show-sm">{selTable ? `T${selTable.tableNumber}` : 'Order'}</span>
+                  {cart.length > 0 && <span className="badge badge-orange">{cart.length}</span>}
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="show-sm text-accent font-bold">₹{profit.toFixed(0)}</div>
+                  {cart.length > 0 && <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setCart([]) }} style={{ color: 'var(--red)', fontWeight: 700 }}>Reset</button>}
+                  <span className="show-sm text-xs">{cartExpanded ? '▼' : '▲'}</span>
+                </div>
               </div>
             </div>
 
-            <div className="cart-body" style={{ padding: '0 24px' }}>
+            <div className="cart-body">
               {cart.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px 0', opacity: 0.3 }}>
-                  <div style={{ fontSize: 48, marginBottom: 16 }}>🥘</div>
-                  <p style={{ fontWeight: 600 }}>Your cart is empty</p>
-                  <p style={{ fontSize: 12 }}>Select items from menu to start</p>
+                <div className="empty-cart-msg">
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🥘</div>
+                  <p style={{ fontWeight: 600 }}>Empty</p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                   {cart.map(item => (
-                    <div key={item.menuItemId} className="cart-item surface-card" style={{ padding: 14, border: 'none' }}>
+                    <div key={item.menuItemId} className="cart-item surface-card">
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{item.name}</div>
-                        <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700, marginTop: 2 }}>₹{item.price * item.quantity}</div>
+                        <div className="cart-item-name">{item.name}</div>
+                        <div className="cart-item-price">₹{item.price * item.quantity}</div>
                       </div>
                       <div className="qty-control">
                         <button className="qty-btn" onClick={() => changeQty(item.menuItemId, -1)}>−</button>
-                        <span style={{ fontWeight: 800, fontSize: 13, minWidth: 20, textAlign: 'center' }}>{item.quantity}</span>
+                        <span className="qty-val-sm">{item.quantity}</span>
                         <button className="qty-btn" onClick={() => changeQty(item.menuItemId, 1)}>+</button>
                       </div>
                     </div>
@@ -266,49 +307,50 @@ export default function StaffOrders() {
               )}
             </div>
 
-            <div className="cart-footer" style={{ padding: 24, background: 'transparent' }}>
-              <div className="glass-card p-5 mb-6">
-                <div className="flex justify-between mb-3">
-                  <span className="form-label" style={{ marginBottom: 0 }}>Subtotal</span>
+            <div className="cart-footer">
+              <div className="glass-card p-4 mb-4 hidden-sm">
+                <div className="flex justify-between mb-2 text-sm">
+                  <span className="text-muted">Subtotal</span>
                   <span style={{ fontWeight: 700 }}>₹{totalAmount}</span>
                 </div>
                 {commission > 0 && (
-                  <div className="flex justify-between mb-3">
-                    <span className="form-label" style={{ marginBottom: 0 }}>Commission</span>
+                  <div className="flex justify-between mb-2 text-sm">
+                    <span className="text-muted">Commission</span>
                     <span style={{ color: 'var(--red)', fontWeight: 700 }}>−₹{commissionAmt.toFixed(0)}</span>
                   </div>
                 )}
-                <div className="flex justify-between items-center mt-4 pt-4" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                <div className="flex justify-between items-center mt-3 pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
                   <span className="card-title">Total</span>
-                  <span className="menu-card-price" style={{ fontSize: 28 }}>₹{profit.toFixed(0)}</span>
+                  <span className="menu-card-price" style={{ fontSize: 24 }}>₹{profit.toFixed(0)}</span>
                 </div>
               </div>
 
-              <div className="form-group mb-4">
-                <label className="form-label">Payment Method</label>
-                <div className="flex gap-2">
-                  {['cash', 'upi', 'card'].map(m => (
-                    <button key={m} 
-                      className={`btn flex-1 ${paymentMethod === m ? 'btn-primary' : 'btn-secondary'}`}
-                      onClick={() => setPaymentMethod(m)}
-                      style={{ padding: '10px 0', fontSize: 12 }}
-                    >
-                      {m === 'cash' ? '💵 Cash' : m === 'upi' ? '📱 UPI' : '💳 Card'}
-                    </button>
-                  ))}
+              <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                <div className="flex-1">
+                  <label className="form-label text-[10px]">Payment</label>
+                  <div className="flex gap-1">
+                    {['cash', 'upi', 'card'].map(m => (
+                      <button key={m} 
+                        className={`btn flex-1 p-2 text-[10px] ${paymentMethod === m ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setPaymentMethod(m)}
+                      >
+                        {m === 'cash' ? '💵' : m === 'upi' ? '📱' : '💳'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              <div className="form-group mb-6">
-                <label className="form-label">Order Notes</label>
-                <input className="form-input" placeholder="Special instructions..." value={notes} onChange={e => setNotes(e.target.value)} />
+                <div className="flex-1 show-sm">
+                  <div className="flex justify-between items-center h-full pt-4">
+                     <span className="menu-card-price text-xl">₹{profit.toFixed(0)}</span>
+                  </div>
+                </div>
               </div>
 
               <button className="btn btn-primary btn-lg w-full" onClick={placeOrder} 
                 disabled={confirming || !cart.length}
-                style={{ height: 56, fontSize: 18, borderRadius: 'var(--radius-lg)' }}
+                style={{ height: 50, fontSize: 16, borderRadius: 'var(--radius)' }}
               >
-                {confirming ? 'Sending to Kitchen...' : `Place Order`}
+                {confirming ? '...' : `Place Order`}
               </button>
             </div>
           </div>

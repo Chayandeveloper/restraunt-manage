@@ -4,38 +4,164 @@ import toast from 'react-hot-toast';
 import Modal from '../../components/Modal';
 import { format } from 'date-fns';
 
+/* ── helpers ────────────────────────────────────────────────── */
+function useWindowWidth() {
+  const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  useEffect(() => {
+    const h = () => setW(window.innerWidth);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return w;
+}
+
 const STATUS_CONFIG = {
-  available: { border: 'var(--green)', badge: 'badge-green', label: 'Available', icon: '🟢' },
-  occupied:  { border: 'var(--red)', badge: 'badge-red', label: 'Occupied', icon: '🔴' },
-  reserved:  { border: 'var(--yellow)', badge: 'badge-yellow', label: 'Booked', icon: '🟡' },
+  available: { bg: 'var(--color-background-success)', color: 'var(--color-text-success)', dot: '#22c55e', label: 'Available' },
+  occupied:  { bg: 'var(--color-background-danger)',  color: 'var(--color-text-danger)',  dot: '#ef4444', label: 'Occupied' },
+  reserved:  { bg: 'var(--color-background-warning)', color: 'var(--color-text-warning)', dot: '#f59e0b', label: 'Reserved' },
 };
 
+function Badge({ text, bg, color }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: bg, color }}>
+      {text}
+    </span>
+  );
+}
+
+const inputStyle = {
+  width: '100%', height: 38, padding: '0 12px',
+  borderRadius: 'var(--border-radius-md)',
+  border: '0.5px solid var(--color-border-tertiary)',
+  background: 'var(--color-background-secondary)',
+  color: 'var(--color-text-primary)',
+  fontSize: 13, outline: 'none', boxSizing: 'border-box',
+};
+
+const labelStyle = {
+  fontSize: 11, fontWeight: 500,
+  color: 'var(--color-text-secondary)',
+  display: 'block', marginBottom: 6,
+};
+
+/* ── table card ─────────────────────────────────────────────── */
+function TableCard({ table, resv, onReserve, onCancelResv, onForceReset, onEdit }) {
+  const s = STATUS_CONFIG[table.status] || STATUS_CONFIG.available;
+  const isAvailable = table.status === 'available';
+  const isOccupied  = table.status === 'occupied';
+  const isReserved  = table.status === 'reserved';
+
+  return (
+    <div style={{
+      background: 'var(--color-background-primary)',
+      border: '0.5px solid var(--color-border-tertiary)',
+      borderRadius: 'var(--border-radius-lg)',
+      overflow: 'hidden',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Card header */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '14px 16px',
+        borderBottom: '0.5px solid var(--color-border-tertiary)',
+        background: 'var(--color-background-secondary)',
+      }}>
+        <div>
+          <div style={{ fontWeight: 500, fontSize: 15, color: 'var(--color-text-primary)' }}>
+            Table {table.tableNumber}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+            {table.capacity} guests
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Badge text={s.label} bg={s.bg} color={s.color} />
+          <button
+            onClick={() => onEdit(table)}
+            style={{ padding: '5px 8px', borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-tertiary)', background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: 12 }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-secondary)'}
+          >⚙</button>
+        </div>
+      </div>
+
+      {/* Status info */}
+      <div style={{ padding: '14px 16px', flex: 1 }}>
+        {isReserved && resv ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-warning)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reserved for</div>
+            <div style={{ fontWeight: 500, fontSize: 14 }}>{resv.customerName}</div>
+            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+              <span>🕒 {format(new Date(resv.startTime), 'hh:mm a')}</span>
+              <span>👥 {resv.partySize} guests</span>
+            </div>
+          </div>
+        ) : isOccupied ? (
+          <div style={{ fontSize: 13, color: 'var(--color-text-danger)', fontWeight: 500 }}>Currently in use</div>
+        ) : (
+          <div style={{ fontSize: 13, color: 'var(--color-text-success)', fontWeight: 500 }}>Ready for seating</div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div style={{ padding: '12px 16px', borderTop: '0.5px solid var(--color-border-tertiary)', display: 'flex', gap: 8 }}>
+        {isAvailable ? (
+          <button
+            onClick={() => onReserve(table)}
+            style={{ flex: 1, height: 36, borderRadius: 'var(--border-radius-md)', border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'var(--transition-fast)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'var(--accent)'}
+          >
+            Reserve Table
+          </button>
+        ) : isReserved && resv ? (
+          <button
+            onClick={() => onCancelResv(resv._id, resv.customerName)}
+            style={{ flex: 1, height: 36, borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-danger)', background: 'transparent', color: 'var(--color-text-danger)', fontWeight: 500, fontSize: 13, cursor: 'pointer' }}
+          >
+            Cancel booking
+          </button>
+        ) : isReserved ? (
+          <button
+            onClick={() => onForceReset(table._id, table.tableNumber)}
+            style={{ flex: 1, height: 36, borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-secondary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontWeight: 500, fontSize: 13, cursor: 'pointer' }}
+          >
+            Force reset
+          </button>
+        ) : (
+          <button disabled style={{ flex: 1, height: 36, borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-tertiary)', background: 'transparent', color: 'var(--color-text-secondary)', fontWeight: 500, fontSize: 13, cursor: 'not-allowed', opacity: 0.5 }}>
+            Occupied
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── main page ──────────────────────────────────────────────── */
 export default function TablesPage() {
-  const [tables, setTables] = useState([]);
+  const [tables, setTables]           = useState([]);
   const [reservations, setReservations] = useState([]);
-  const [tableModal, setTableModal] = useState(false);
-  const [resvModal, setResvModal] = useState(false);
-  const [edit, setEdit] = useState(null);
-  const [selTable, setSelTable] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [tableForm, setTableForm] = useState({ tableNumber: '', capacity: 4 });
-  const [resvForm, setResvForm] = useState({
+  const [tableModal, setTableModal]   = useState(false);
+  const [resvModal, setResvModal]     = useState(false);
+  const [edit, setEdit]               = useState(null);
+  const [selTable, setSelTable]       = useState(null);
+  const [loading, setLoading]         = useState(false);
+  const [search, setSearch]           = useState('');
+  const [tableForm, setTableForm]     = useState({ tableNumber: '', capacity: 4 });
+  const [resvForm, setResvForm]       = useState({
     customerName: '', customerPhone: '', partySize: 2,
-    startTime: format(new Date(), "yyyy-MM-dd'T'HH:mm"), notes: ''
+    startTime: format(new Date(), "yyyy-MM-dd'T'HH:mm"), notes: '',
   });
+  const width = useWindowWidth();
+  const isMobile = width < 640;
 
   const fetchData = useCallback(async () => {
     try {
-      const [tRes, rRes] = await Promise.all([
-        api.get('/tables'),
-        api.get('/reservations'),
-      ]);
+      const [tRes, rRes] = await Promise.all([api.get('/tables'), api.get('/reservations')]);
       setTables(tRes.data);
       setReservations(rRes.data.filter(r => !['cancelled', 'completed', 'no-show'].includes(r.status)));
-    } catch {
-      toast.error('Failed to load data');
-    }
+    } catch { toast.error('Failed to load data'); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -55,24 +181,20 @@ export default function TablesPage() {
       edit ? await api.put(`/tables/${edit._id}`, tableForm)
            : await api.post('/tables', tableForm);
       toast.success(edit ? 'Table updated' : 'Table added');
-      setTableModal(false);
-      fetchData();
+      setTableModal(false); fetchData();
     } catch (e) { toast.error(e.response?.data?.message || 'Error saving table'); }
     finally { setLoading(false); }
   };
 
   const deleteTable = async (t) => {
     if (!window.confirm(`Delete Table ${t.tableNumber}?`)) return;
-    try { await api.delete(`/tables/${t._id}`); toast.success('Table deleted'); fetchData(); }
+    try { await api.delete(`/tables/${t._id}`); toast.success('Deleted'); fetchData(); }
     catch { toast.error('Error deleting table'); }
   };
 
   const openResvModal = (t) => {
     setSelTable(t);
-    setResvForm({
-      customerName: '', customerPhone: '', partySize: t.capacity,
-      startTime: format(new Date(), "yyyy-MM-dd'T'HH:mm"), notes: ''
-    });
+    setResvForm({ customerName: '', customerPhone: '', partySize: t.capacity, startTime: format(new Date(), "yyyy-MM-dd'T'HH:mm"), notes: '' });
     setResvModal(true);
   };
 
@@ -81,228 +203,331 @@ export default function TablesPage() {
     setLoading(true);
     try {
       await api.post('/reservations', {
-        ...resvForm,
-        tableId: selTable._id,
-        endTime: new Date(new Date(resvForm.startTime).getTime() + 2 * 60 * 60 * 1000).toISOString(),
+        ...resvForm, tableId: selTable._id,
+        endTime: new Date(new Date(resvForm.startTime).getTime() + 2 * 3600000).toISOString(),
         status: 'confirmed',
       });
       toast.success(`Table ${selTable.tableNumber} booked!`);
-      setResvModal(false);
-      fetchData();
+      setResvModal(false); fetchData();
     } catch (e) { toast.error(e.response?.data?.message || 'Booking failed'); }
     finally { setLoading(false); }
   };
 
-  const cancelById = async (resvId, customerName) => {
-    if (!window.confirm(`Cancel booking for "${customerName}"?`)) return;
+  const cancelById = async (resvId, name) => {
+    if (!window.confirm(`Cancel booking for "${name}"?`)) return;
     setLoading(true);
-    try {
-      await api.delete(`/reservations/${resvId}`);
-      toast.success('Booking cancelled');
-      fetchData();
-    } catch { toast.error('Error cancelling booking'); }
+    try { await api.delete(`/reservations/${resvId}`); toast.success('Booking cancelled'); fetchData(); }
+    catch { toast.error('Error cancelling booking'); }
     finally { setLoading(false); }
   };
 
   const forceReset = async (tableId, tableNumber) => {
     if (!window.confirm(`Force-reset Table ${tableNumber}?`)) return;
     setLoading(true);
-    try {
-      await api.put(`/tables/${tableId}`, { status: 'available' });
-      toast.success('Table status reset');
-      fetchData();
-    } catch { toast.error('Error resetting table'); }
+    try { await api.put(`/tables/${tableId}`, { status: 'available' }); toast.success('Reset'); fetchData(); }
+    catch { toast.error('Error'); }
     finally { setLoading(false); }
   };
 
+  /* status summary counts */
+  const counts = { available: 0, occupied: 0, reserved: 0 };
+  tables.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
+
+  const filteredResv = reservations.filter(r =>
+    r.customerName.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const thStyle = {
+    padding: '10px 16px', fontSize: 11, fontWeight: 500,
+    color: 'var(--color-text-secondary)', textAlign: 'left',
+    borderBottom: '0.5px solid var(--color-border-tertiary)',
+    background: 'var(--color-background-secondary)',
+    whiteSpace: 'nowrap',
+  };
+  const tdStyle = {
+    padding: '11px 16px', fontSize: 13,
+    borderBottom: '0.5px solid var(--color-border-tertiary)',
+    verticalAlign: 'middle',
+  };
+
   return (
-    <div className="animate-slide-up">
-      <div className="page-header">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: isMobile ? '16px' : '24px' }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="page-title">Floor Management</h1>
-          <p className="page-subtitle">Control table statuses and manage customer reservations</p>
+          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 500, margin: 0, color: 'var(--color-text-primary)' }}>Floor management</h1>
+          <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 4 }}>
+            Table statuses and reservations
+          </p>
         </div>
-        <div className="flex gap-3">
-          <button className="btn btn-secondary" onClick={fetchData}>⟳ Refresh Floor</button>
-          <button className="btn btn-primary" onClick={() => openTableModal()}>+ New Table</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={fetchData} style={{ fontSize: 13, padding: '7px 14px', height: 36, borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-secondary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', cursor: 'pointer', fontWeight: 500 }}>
+            ↻ Refresh
+          </button>
+          <button onClick={() => openTableModal()} style={{ fontSize: 13, padding: '7px 14px', height: 36, borderRadius: 'var(--border-radius-md)', border: 'none', background: 'var(--color-background-info)', color: 'var(--color-text-info)', cursor: 'pointer', fontWeight: 500 }}>
+            + New table
+          </button>
         </div>
       </div>
 
-      <div className="page-body">
-        <div className="table-grid mb-10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-          {tables.length === 0 ? (
-            <div className="card p-16 flex flex-col items-center gap-6" style={{ gridColumn: '1/-1' }}>
-              <div style={{ fontSize: 72, opacity: 0.2 }}>🪑</div>
-              <div className="text-center">
-                <h3 className="card-title" style={{ fontSize: 24, marginBottom: 8 }}>Empty Dining Area</h3>
-                <p className="text-muted" style={{ fontWeight: 500 }}>Start by adding tables to your floor plan.</p>
-              </div>
-              <button className="btn btn-primary btn-lg" onClick={() => openTableModal()}>Add First Table</button>
+      {/* Status summary pills */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {Object.entries(counts).map(([status, count]) => {
+          const s = STATUS_CONFIG[status];
+          return (
+            <div key={status} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 14px', borderRadius: 'var(--border-radius-md)',
+              background: 'var(--color-background-primary)',
+              border: '0.5px solid var(--color-border-tertiary)',
+              fontSize: 13,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
+              <span style={{ color: 'var(--color-text-secondary)' }}>{s.label}</span>
+              <span style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{count}</span>
             </div>
-          ) : (
-            tables.map(t => {
-              const resv = resvForTable(t._id);
-              const s = STATUS_CONFIG[t.status] || STATUS_CONFIG.available;
-              return (
-                <div key={t._id} className="premium-card flex flex-col" style={{ padding: 0, overflow: 'hidden' }}>
-                  <div style={{ padding: '20px 24px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18 }}>Table {t.tableNumber}</h3>
-                      <div className="flex items-center gap-2 mt-1" style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
-                        <span>Capacity: {t.capacity} Guests</span>
-                      </div>
-                    </div>
-                    <span className={`badge ${s.badge}`} style={{ padding: '6px 12px', fontSize: 11, fontWeight: 800 }}>
-                      {s.icon} {s.label.toUpperCase()}
-                    </span>
-                  </div>
+          );
+        })}
+      </div>
 
-                  <div style={{ padding: 24, flex: 1 }}>
-                    <div className="surface-card p-4 mb-6" style={{ background: t.status === 'available' ? 'var(--accent-dim2)' : 'var(--bg-elevated)', borderStyle: 'dashed' }}>
-                      {t.status === 'reserved' && resv ? (
-                        <div className="animate-slide-up">
-                          <div className="stat-label" style={{ color: 'var(--yellow)', marginBottom: 6 }}>Scheduled Arrival</div>
-                          <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--text-primary)' }}>{resv.customerName}</div>
-                          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6, display: 'flex', gap: 12 }}>
-                            <span>🕒 {format(new Date(resv.startTime), 'hh:mm a')}</span>
-                            <span>👥 {resv.partySize} Guests</span>
-                          </div>
-                        </div>
-                      ) : t.status === 'occupied' ? (
-                        <div className="flex flex-col gap-1">
-                          <div className="stat-label" style={{ color: 'var(--red)', marginBottom: 4 }}>Current Status</div>
-                          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-secondary)' }}>🔥 Table is currently in use</div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1">
-                          <div className="stat-label" style={{ color: 'var(--green)', marginBottom: 4 }}>Availability</div>
-                          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)' }}>✨ Ready for immediate seating</div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-3">
-                      {t.status === 'available' ? (
-                        <button className="btn btn-primary flex-1" style={{ height: 44 }} onClick={() => openResvModal(t)}>Reserve Table</button>
-                      ) : resv ? (
-                        <button className="btn btn-secondary flex-1" style={{ height: 44, color: 'var(--red)', borderColor: 'var(--red-dim)' }} onClick={() => cancelById(resv._id, resv.customerName)}>Cancel Booking</button>
-                      ) : t.status === 'reserved' ? (
-                        <button className="btn btn-secondary flex-1" style={{ height: 44 }} onClick={() => forceReset(t._id, t.tableNumber)}>Force Reset</button>
-                      ) : (
-                        <button className="btn btn-secondary flex-1" style={{ height: 44 }} disabled>Table Occupied</button>
-                      )}
-                      <button className="btn btn-ghost" style={{ width: 44, height: 44, padding: 0, border: '1px solid var(--border)' }} onClick={() => openTableModal(t)}>⚙️</button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
+      {/* Table grid */}
+      {tables.length === 0 ? (
+        <div style={{
+          background: 'var(--color-background-primary)',
+          border: '0.5px solid var(--color-border-tertiary)',
+          borderRadius: 'var(--border-radius-lg)',
+          padding: '80px 24px', textAlign: 'center',
+          color: 'var(--color-text-secondary)',
+        }}>
+          <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.3 }}>🪑</div>
+          <p style={{ fontWeight: 500, marginBottom: 16 }}>No tables yet</p>
+          <button onClick={() => openTableModal()} style={{ fontSize: 13, padding: '8px 20px', borderRadius: 'var(--border-radius-md)', border: 'none', background: 'var(--color-background-info)', color: 'var(--color-text-info)', cursor: 'pointer', fontWeight: 500 }}>
+            Add first table
+          </button>
         </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile
+            ? '1fr'
+            : width < 1024
+              ? 'repeat(2, minmax(0, 1fr))'
+              : 'repeat(3, minmax(0, 1fr))',
+          gap: 12,
+        }}>
+          {tables.map(t => (
+            <TableCard
+              key={t._id}
+              table={t}
+              resv={resvForTable(t._id)}
+              onReserve={openResvModal}
+              onCancelResv={cancelById}
+              onForceReset={forceReset}
+              onEdit={openTableModal}
+            />
+          ))}
+        </div>
+      )}
 
-        <div className="card">
-          <div className="card-header flex flex-wrap justify-between items-center" style={{ padding: '24px' }}>
-            <div>
-              <h2 className="card-title" style={{ fontSize: 18 }}>Active Reservations</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>Upcoming arrivals and scheduled bookings</p>
-            </div>
-            <div className="search-input" style={{ width: 320 }}>
-               <input className="form-input" style={{ padding: '10px 16px', borderRadius: 99 }} placeholder="Search customers..." value={search} onChange={e => setSearch(e.target.value)} />
+      {/* Reservations list */}
+      <div style={{
+        background: 'var(--color-background-primary)',
+        border: '0.5px solid var(--color-border-tertiary)',
+        borderRadius: 'var(--border-radius-lg)',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexWrap: 'wrap', gap: 12,
+          padding: '14px 16px',
+          borderBottom: '0.5px solid var(--color-border-tertiary)',
+        }}>
+          <div>
+            <div style={{ fontWeight: 500, fontSize: 15 }}>Active reservations</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+              {reservations.length} upcoming
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="data-table">
+          <input
+            style={{ ...inputStyle, width: isMobile ? '100%' : 240 }}
+            placeholder="Search customers…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Mobile: stacked cards / Desktop: table */}
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 16 }}>
+            {filteredResv.length === 0 ? (
+              <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                <div style={{ fontSize: 28 }}>📅</div>
+                <p style={{ marginTop: 12, fontWeight: 500 }}>No active bookings</p>
+              </div>
+            ) : filteredResv.map(r => (
+              <div key={r._id} style={{
+                background: 'var(--color-background-secondary)',
+                border: '0.5px solid var(--color-border-tertiary)',
+                borderRadius: 'var(--border-radius-md)',
+                padding: '12px 14px',
+                display: 'flex', flexDirection: 'column', gap: 8,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: 14 }}>{r.customerName}</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                      {r.customerPhone || '—'} · {r.partySize} guests
+                    </div>
+                  </div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                    T-{r.tableId?.tableNumber || '?'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                    {format(new Date(r.startTime), 'MMM d, hh:mm a')}
+                  </span>
+                  <button
+                    onClick={() => cancelById(r._id, r.customerName)}
+                    style={{ fontSize: 11, padding: '4px 10px', borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-danger)', background: 'transparent', color: 'var(--color-text-danger)', cursor: 'pointer', fontWeight: 500 }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
               <thead>
                 <tr>
-                  <th>Table</th>
-                  <th>Customer Name</th>
-                  <th>Contact Info</th>
-                  <th style={{ textAlign: 'center' }}>Party Size</th>
-                  <th>Expected Arrival</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
+                  <th style={thStyle}>Table</th>
+                  <th style={thStyle}>Customer</th>
+                  <th style={thStyle}>Phone</th>
+                  <th style={{ ...thStyle, textAlign: 'center' }}>Party</th>
+                  <th style={thStyle}>Arrival</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {reservations.filter(r => r.customerName.toLowerCase().includes(search.toLowerCase())).length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 60, opacity: 0.5 }}>No active bookings found</td></tr>
-                ) : (
-                  reservations.filter(r => r.customerName.toLowerCase().includes(search.toLowerCase())).map(r => (
-                    <tr key={r._id}>
-                      <td><span style={{ fontWeight: 800, color: 'var(--accent)' }}>T-{r.tableId?.tableNumber || '?'}</span></td>
-                      <td style={{ fontWeight: 700, fontSize: 14 }}>{r.customerName}</td>
-                      <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{r.customerPhone || '—'}</td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className="badge" style={{ background: 'var(--bg-elevated)', minWidth: 32 }}>{r.partySize}</span>
-                      </td>
-                      <td style={{ fontWeight: 600 }}>{format(new Date(r.startTime), 'MMM d, hh:mm a')}</td>
-                      <td><span className="badge badge-yellow" style={{ textTransform: 'uppercase', fontSize: 10, fontWeight: 800 }}>{r.status}</span></td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)', fontWeight: 700 }} onClick={() => cancelById(r._id, r.customerName)}>Cancel</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                {filteredResv.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '60px 0', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                      <div style={{ fontSize: 28 }}>📅</div>
+                      <p style={{ marginTop: 12, fontWeight: 500 }}>No active bookings</p>
+                    </td>
+                  </tr>
+                ) : filteredResv.map(r => (
+                  <tr key={r._id}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-background-secondary)'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}
+                  >
+                    <td style={{ ...tdStyle, fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+                      T-{r.tableId?.tableNumber || '?'}
+                    </td>
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>{r.customerName}</td>
+                    <td style={{ ...tdStyle, color: 'var(--color-text-secondary)' }}>{r.customerPhone || '—'}</td>
+                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                      <Badge text={`${r.partySize}`} bg="var(--color-background-secondary)" color="var(--color-text-primary)" />
+                    </td>
+                    <td style={{ ...tdStyle, color: 'var(--color-text-secondary)', fontSize: 12 }}>
+                      {format(new Date(r.startTime), 'MMM d, hh:mm a')}
+                    </td>
+                    <td style={tdStyle}>
+                      <Badge text={r.status} bg="var(--color-background-warning)" color="var(--color-text-warning)" />
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>
+                      <button
+                        onClick={() => cancelById(r._id, r.customerName)}
+                        style={{ fontSize: 12, padding: '5px 10px', borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-danger)', background: 'transparent', color: 'var(--color-text-danger)', cursor: 'pointer', fontWeight: 500 }}
+                      >
+                        Cancel
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Modals */}
+      {/* ── Table modal ── */}
       {tableModal && (
-        <Modal title={edit ? `Edit Table ${edit.tableNumber}` : 'Add New Table'} onClose={() => setTableModal(false)}
+        <Modal
+          title={edit ? `Edit table ${edit.tableNumber}` : 'Add new table'}
+          onClose={() => setTableModal(false)}
           footer={
-            <div className="flex gap-3 w-full">
-              <button className="btn btn-secondary flex-1" onClick={() => setTableModal(false)}>Cancel</button>
-              <button className="btn btn-primary flex-1" onClick={saveTable}>{loading ? 'Saving...' : 'Save Table'}</button>
+            <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+              <button onClick={() => setTableModal(false)} style={{ flex: 1, fontSize: 13, padding: '8px', borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-secondary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>Cancel</button>
+              {edit && (
+                <button onClick={() => { setTableModal(false); deleteTable(edit); }} style={{ fontSize: 13, padding: '8px 14px', borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-danger)', background: 'transparent', color: 'var(--color-text-danger)', cursor: 'pointer' }}>Delete</button>
+              )}
+              <button onClick={saveTable} disabled={loading} style={{ flex: 1, fontSize: 13, padding: '8px', borderRadius: 'var(--border-radius-md)', border: 'none', background: 'var(--color-background-info)', color: 'var(--color-text-info)', cursor: 'pointer', fontWeight: 500 }}>
+                {loading ? 'Saving…' : 'Save table'}
+              </button>
             </div>
-          }>
-          <div className="flex flex-col gap-5">
-            <div className="form-group">
-              <label className="form-label">Table Number / Label</label>
-              <input className="form-input" style={{ height: 48 }} value={tableForm.tableNumber} onChange={e => setTableForm({...tableForm, tableNumber: e.target.value})} placeholder="e.g. T-10, VIP-1" />
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={labelStyle}>Table number / label</label>
+              <input style={inputStyle} value={tableForm.tableNumber} onChange={e => setTableForm({ ...tableForm, tableNumber: e.target.value })} placeholder="e.g. T-10, VIP-1" />
             </div>
-            <div className="form-group">
-              <label className="form-label">Seating Capacity</label>
-              <input className="form-input" style={{ height: 48 }} type="number" value={tableForm.capacity} onChange={e => setTableForm({...tableForm, capacity: parseInt(e.target.value) || 1})} />
+            <div>
+              <label style={labelStyle}>Seating capacity</label>
+              <input style={inputStyle} type="number" min="1" value={tableForm.capacity} onChange={e => setTableForm({ ...tableForm, capacity: parseInt(e.target.value) || 1 })} />
             </div>
           </div>
         </Modal>
       )}
 
+      {/* ── Reservation modal ── */}
       {resvModal && (
-        <Modal title={`Book Table ${selTable?.tableNumber}`} onClose={() => setResvModal(false)}
+        <Modal
+          title={`Reserve table ${selTable?.tableNumber}`}
+          onClose={() => setResvModal(false)}
           footer={
-            <div className="flex gap-3 w-full">
-              <button className="btn btn-secondary flex-1" onClick={() => setResvModal(false)}>Cancel</button>
-              <button className="btn btn-primary flex-1" onClick={confirmReservation}>{loading ? 'Processing...' : 'Confirm Booking'}</button>
+            <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+              <button onClick={() => setResvModal(false)} style={{ flex: 1, fontSize: 13, padding: '8px', borderRadius: 'var(--border-radius-md)', border: '0.5px solid var(--color-border-secondary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={confirmReservation} disabled={loading} style={{ flex: 1, fontSize: 13, padding: '8px', borderRadius: 'var(--border-radius-md)', border: 'none', background: 'var(--color-background-info)', color: 'var(--color-text-info)', cursor: 'pointer', fontWeight: 500 }}>
+                {loading ? 'Booking…' : 'Confirm booking'}
+              </button>
             </div>
-          }>
-          <div className="flex flex-col gap-6">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-              <div className="form-group">
-                <label className="form-label">Customer Name</label>
-                <input className="form-input" style={{ height: 48 }} value={resvForm.customerName} onChange={e => setResvForm({...resvForm, customerName: e.target.value})} />
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Customer name</label>
+                <input style={inputStyle} value={resvForm.customerName} onChange={e => setResvForm({ ...resvForm, customerName: e.target.value })} placeholder="Full name" />
               </div>
-              <div className="form-group">
-                <label className="form-label">Phone Number</label>
-                <input className="form-input" style={{ height: 48 }} value={resvForm.customerPhone} onChange={e => setResvForm({...resvForm, customerPhone: e.target.value})} />
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-              <div className="form-group">
-                <label className="form-label">Party Size</label>
-                <input className="form-input" style={{ height: 48 }} type="number" value={resvForm.partySize} onChange={e => setResvForm({...resvForm, partySize: parseInt(e.target.value) || 1})} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Expected Arrival</label>
-                <input className="form-input" style={{ height: 48 }} type="datetime-local" value={resvForm.startTime} onChange={e => setResvForm({...resvForm, startTime: e.target.value})} />
+              <div>
+                <label style={labelStyle}>Phone</label>
+                <input style={inputStyle} value={resvForm.customerPhone} onChange={e => setResvForm({ ...resvForm, customerPhone: e.target.value })} placeholder="+91…" />
               </div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Special Requests / Notes</label>
-              <textarea className="form-input" style={{ minHeight: 100, padding: 16 }} value={resvForm.notes} onChange={e => setResvForm({...resvForm, notes: e.target.value})} placeholder="e.g. Birthday celebration, window seat..." />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Party size</label>
+                <input style={inputStyle} type="number" min="1" value={resvForm.partySize} onChange={e => setResvForm({ ...resvForm, partySize: parseInt(e.target.value) || 1 })} />
+              </div>
+              <div>
+                <label style={labelStyle}>Arrival time</label>
+                <input style={{ ...inputStyle }} type="datetime-local" value={resvForm.startTime} onChange={e => setResvForm({ ...resvForm, startTime: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>Notes / special requests</label>
+              <textarea
+                style={{ ...inputStyle, height: 80, padding: '10px 12px', resize: 'vertical' }}
+                value={resvForm.notes}
+                onChange={e => setResvForm({ ...resvForm, notes: e.target.value })}
+                placeholder="Birthday, window seat…"
+              />
             </div>
           </div>
         </Modal>

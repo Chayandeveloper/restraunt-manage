@@ -53,7 +53,31 @@ body {
 
   --font-display: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   --sidebar-w: 280px;
+
+  /* Semantic Colors - Orange Theme */
+  --color-background-primary: var(--bg-surface);
+  --color-background-secondary: var(--bg-elevated);
+  --color-background-info: rgba(249, 115, 22, 0.12);
+  --color-text-info: #fb923c;
+  --color-border-info: rgba(249, 115, 22, 0.3);
+
+  --color-background-success: rgba(16, 185, 129, 0.12);
+  --color-text-success: #34d399;
+  --color-background-danger: rgba(244, 63, 94, 0.12);
+  --color-text-danger: #fb7185;
+  --color-background-warning: rgba(245, 158, 11, 0.12);
+  --color-text-warning: #fbbf24;
+  --color-background-secondary-alt: var(--bg-hover);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-border-primary: var(--accent);
+  --color-border-secondary: var(--border);
+  --color-border-tertiary: var(--border-light);
 
   --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-fast: all 0.2s ease;
@@ -1215,6 +1239,15 @@ body {
   padding: 0 40px 48px 40px;
 }
 
+@media (max-width: 640px) {
+  .page-body {
+    padding: 0 12px 32px 12px;
+  }
+  .page-header {
+    padding: 24px 12px;
+  }
+}
+
 /* Stats Cards */
 .stats-grid {
   display: grid;
@@ -1222,10 +1255,37 @@ body {
   gap: 32px;
 }
 
+.filter-scroll-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+}
+
 @media (max-width: 640px) {
   .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .stat-card {
+    padding: 16px !important;
+  }
+  .stat-value {
+    font-size: 20px !important;
+  }
+  .filter-scroll-container {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+    width: 100%;
+  }
+  .filter-scroll-container::-webkit-scrollbar {
+    display: none;
+  }
+  .filter-item {
+    flex-shrink: 0;
   }
 }
 
@@ -1406,5 +1466,9 @@ body {
   .flex-1-mobile {
     flex: 1;
     min-width: calc(50% - 12px);
+  }@media (max-width: 1024px) {
+  .hidden-md {
+    display: none !important;
   }
+}
 }

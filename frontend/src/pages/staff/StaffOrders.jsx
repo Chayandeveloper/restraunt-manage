@@ -192,30 +192,28 @@ export default function StaffOrders() {
                 </div>
               </div>
 
-              {/* Table picker */}
+              {/* Table picker - Dropdown Only */}
               {source === 'direct' && (
                 <div className="so-table-section">
                   <div className="so-table-header">
                     <span className="so-section-label">Select Table</span>
-                    <span className="so-legend">
-                      <span className="so-dot so-dot--green" /> Free
-                      <span className="so-dot so-dot--red" /> Occupied
-                    </span>
                   </div>
-                  <div className="so-table-grid">
+                  <select
+                    className={`so-table-select ${selTable ? 'so-table-select--active' : ''}`}
+                    value={selTable?._id || ''}
+                    onChange={e => {
+                      const t = tables.find(t => t._id === e.target.value);
+                      if (t && t.status === 'occupied') return toast.error('Table is occupied');
+                      setSelTable(t || null);
+                    }}
+                  >
+                    <option value="">Choose Table...</option>
                     {tables.map(t => (
-                      <button
-                        key={t._id}
-                        className={`so-table-tile so-table-tile--${t.status} ${selTable?._id === t._id ? 'so-table-tile--sel' : ''}`}
-                        onClick={() => t.status !== 'occupied'
-                          ? setSelTable(selTable?._id === t._id ? null : t)
-                          : toast.error('Table is occupied')}
-                      >
-                        <span className="so-tile-num">{t.tableNumber}</span>
-                        <span className="so-tile-cap">👥{t.capacity}</span>
-                      </button>
+                      <option key={t._id} value={t._id} disabled={t.status === 'occupied'}>
+                        Table {t.tableNumber} ({t.capacity} seats) {t.status === 'occupied' ? '• Occupied' : '• Available'}
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 </div>
               )}
 
@@ -303,6 +301,7 @@ export default function StaffOrders() {
                       onClick={e => { e.stopPropagation(); setCart([]); }}
                     >Clear</button>
                   )}
+                  <span className="so-close-icon-mob">✕</span>
                   <span className="so-chevron">{cartOpen ? '▼' : '▲'}</span>
                 </div>
               </div>
@@ -383,13 +382,31 @@ export default function StaffOrders() {
             </aside>
 
             {/* Mobile cart toggle FAB */}
-            <button
-              className="so-cart-fab"
-              onClick={() => setCartOpen(v => !v)}
-            >
-              🛒 {cart.length > 0 && <span className="so-fab-count">{cart.length}</span>}
-              <span className="so-fab-price">₹{profit.toFixed(0)}</span>
-            </button>
+            {/* Mobile Actions Bar */}
+            <div className="so-mobile-actions">
+              <button
+                className="so-action-btn so-action-btn--cart"
+                onClick={() => setCartOpen(v => !v)}
+              >
+                <span className="so-action-icon">🛒</span>
+                <div className="so-action-text">
+                  <span className="so-action-label">Cart</span>
+                  <span className="so-action-val">{cart.length} Items</span>
+                </div>
+              </button>
+              
+              <button
+                className="so-action-btn so-action-btn--place"
+                onClick={placeOrder}
+                disabled={confirming || !cart.length}
+              >
+                <div className="so-action-text">
+                  <span className="so-action-label">{confirming ? 'Placing...' : 'Place Order'}</span>
+                  <span className="so-action-val">₹{profit.toFixed(0)}</span>
+                </div>
+                <span className="so-action-icon">🚀</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -650,30 +667,33 @@ const CSS = `
     flex-shrink: 0;
   }
   .so-table-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
   .so-section-label { font-size: 11px; font-weight: 700; color: var(--so-muted2); text-transform: uppercase; letter-spacing: .06em; }
-  .so-legend { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--so-muted); }
-  .so-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
-  .so-dot--green { background: var(--so-green); }
-  .so-dot--red   { background: var(--so-red); }
-  .so-table-grid {
-    display: flex; flex-wrap: wrap; gap: 8px;
+  .so-table-select {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--so-surface);
+    border: 1.5px solid var(--so-border);
+    border-radius: var(--so-radius-sm);
+    color: var(--so-text);
+    font-family: var(--so-font);
+    font-size: 14px;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+    transition: all .2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
   }
-  .so-table-tile {
-    width: 58px; height: 58px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    border-radius: var(--so-radius-sm); border: 1.5px solid var(--so-border);
-    background: var(--so-surface); cursor: pointer;
-    transition: all .18s; gap: 2px;
-  }
-  .so-table-tile--available { border-color: rgba(34,197,94,.3); }
-  .so-table-tile--available:hover { border-color: var(--so-green); background: rgba(34,197,94,.08); }
-  .so-table-tile--occupied { opacity: .45; cursor: not-allowed; border-color: rgba(239,68,68,.3); }
-  .so-table-tile--sel { border-color: var(--so-accent) !important; background: rgba(249,115,22,.15) !important; }
-  .so-tile-num { font-size: 16px; font-weight: 800; color: var(--so-text); line-height: 1; }
-  .so-tile-cap { font-size: 10px; color: var(--so-muted); }
+  .so-table-select:focus { border-color: var(--so-accent); }
+  .so-table-select--active { border-color: var(--so-accent); background-color: rgba(249,115,22,0.05); }
 
   /* Commission bar */
   .so-commission-bar {
@@ -782,6 +802,7 @@ const CSS = `
   }
   .so-clear-btn:hover { background: rgba(239,68,68,.1); }
   .so-chevron { font-size: 10px; color: var(--so-muted); display: none; }
+  .so-close-icon-mob { display: none; font-size: 18px; color: var(--so-muted2); font-weight: 700; padding: 4px; }
 
   .so-cart-body { flex: 1; overflow-y: auto; padding: 12px; }
   .so-cart-body::-webkit-scrollbar { width: 3px; }
@@ -844,22 +865,28 @@ const CSS = `
   .so-place-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(249,115,22,.5); }
   .so-place-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
 
-  /* Mobile cart FAB */
-  .so-cart-fab {
+  /* Mobile Actions Bar */
+  .so-mobile-actions {
     display: none;
-    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-    background: linear-gradient(135deg, #f97316, #ea580c);
-    color: #fff; border: none; border-radius: 99px;
-    padding: 12px 24px; font-family: var(--so-font); font-size: 15px; font-weight: 800;
-    cursor: pointer; z-index: 50;
-    box-shadow: 0 6px 24px rgba(249,115,22,.5);
-    align-items: center; gap: 8px;
+    position: fixed; bottom: 16px; left: 12px; right: 12px; z-index: 50;
+    gap: 10px;
   }
-  .so-fab-count {
-    background: rgba(255,255,255,.25); border-radius: 99px;
-    padding: 2px 8px; font-size: 13px; font-weight: 700;
+  .so-action-btn {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px; border-radius: 16px; border: none;
+    font-family: var(--so-font); cursor: pointer; transition: all .2s;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   }
-  .so-fab-price { font-size: 16px; font-weight: 800; }
+  .so-action-btn:active { transform: scale(0.96); }
+  .so-action-btn--cart { background: var(--so-card); border: 1.5px solid var(--so-border); color: var(--so-text); }
+  .so-action-btn--place { background: linear-gradient(135deg, #f97316, #ea580c); color: #fff; }
+  .so-action-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  
+  .so-action-icon { font-size: 20px; }
+  .so-action-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+  .so-action-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; opacity: .8; }
+  .so-action-val { font-size: 15px; font-weight: 800; }
+  .so-action-btn--place .so-action-text { align-items: flex-end; }
 
   /* ── Live tab ── */
   .so-live {
@@ -1003,13 +1030,15 @@ const CSS = `
 
     .so-commission-bar { margin: 10px 12px 0; flex-wrap: wrap; }
 
-    /* On very small screens, hide the cart panel entirely, use FAB */
-    .so-cart { display: none; }
-    .so-cart--open {
-      display: flex;
-      transform: translateY(0);
+    /* On very small screens, use the actions bar but allow cart to open as fixed overlay */
+    .so-cart { 
+      display: none; 
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 100; max-height: 100vh; border-radius: 0;
     }
-    .so-cart-fab { display: flex !important; }
+    .so-cart--open { display: flex !important; transform: none !important; }
+    .so-close-icon-mob { display: inline !important; }
+    .so-mobile-actions { display: flex !important; }
 
     /* Live tab */
     .so-live { padding: 12px; gap: 12px; }

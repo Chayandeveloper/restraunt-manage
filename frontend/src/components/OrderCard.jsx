@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Modal from './Modal';
 
 const SOURCE_COLORS = { direct: 'badge-green', zomato: 'badge-red', swiggy: 'badge-orange' };
-const STATUS_COLORS = { pending: 'badge-yellow', preparing: 'badge-blue', ready: 'badge-green', completed: 'badge-gray' };
+const STATUS_COLORS = { pending: 'badge-yellow', completed: 'badge-gray' };
 const PAY_ICONS = { cash: '💵', upi: '📱', card: '💳' };
 
 export function printReceipt(order, restaurantName = 'Restaurant') {
@@ -134,8 +134,6 @@ export default function OrderCard({ order, onStatusChange, onPaymentChange, show
               {order.status !== 'completed' && onStatusChange && (
                 <select className="status-select" style={{ flex: 1, height: 48 }} value={order.status} onChange={e => onStatusChange(order._id, e.target.value)}>
                   <option value="pending">⏳ Pending</option>
-                  <option value="preparing">🔥 Preparing</option>
-                  <option value="ready">✓ Ready</option>
                   <option value="completed">✅ Completed</option>
                 </select>
               )}
@@ -220,11 +218,11 @@ export default function OrderCard({ order, onStatusChange, onPaymentChange, show
             <div className="flex flex-col gap-4">
               <h4 style={{ fontSize: 14, fontWeight: 700, opacity: 0.7 }}>UPDATE STATUS</h4>
               <div className="flex gap-2">
-                {['pending', 'preparing', 'ready', 'completed'].map(s => (
+                {['pending', 'completed'].map(s => (
                   <button 
                     key={s}
                     className={`btn flex-1 p-3 text-[10px] ${order.status === s ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => { onStatusChange?.(order._id, s); if(s === 'completed') setShowDetails(false); }}
+                    onClick={() => { onStatusChange?.(order._id, s); setShowDetails(false); }}
                   >
                     {s.toUpperCase()}
                   </button>

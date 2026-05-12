@@ -53,14 +53,7 @@ function TableTile({ table, activeOrder, onClick, selected }) {
             ⏱ {elapsed}m ago · {activeOrder.items.length} item{activeOrder.items.length !== 1 ? 's' : ''}
           </div>
           <div style={{ marginTop: 4 }}>
-            <span style={{
-              fontSize: 9, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
-              padding: '2px 6px', borderRadius: 99,
-              background: activeOrder.status === 'ready' ? 'var(--green-dim)' : activeOrder.status === 'preparing' ? 'var(--blue-dim)' : 'var(--yellow-dim)',
-              color: activeOrder.status === 'ready' ? 'var(--green)' : activeOrder.status === 'preparing' ? 'var(--blue)' : 'var(--yellow)',
-            }}>
-              {activeOrder.status === 'ready' ? '✓ Ready' : activeOrder.status === 'preparing' ? '🔥 Cooking' : '⏳ Pending'}
-            </span>
+            {activeOrder.status === 'completed' ? '✓ Completed' : '⏳ Pending'}
           </div>
         </div>
       )}
@@ -181,7 +174,6 @@ export default function FloorPlanPage() {
   const closeAndPay = async () => {
     try {
       await api.put(`/orders/${activeOrder._id}/payment`, { paymentMethod: payMethod, paymentStatus: 'paid' });
-      await api.put(`/orders/${activeOrder._id}/status`, { status: 'completed' });
       toast.success('Bill paid & table freed!');
       printReceipt({ ...activeOrder, paymentMethod: payMethod, paymentStatus: 'paid' });
       setPayModal(false);
@@ -284,10 +276,10 @@ export default function FloorPlanPage() {
                     </div>
                     <span style={{
                       fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 99,
-                      background: activeOrder.status === 'ready' ? 'var(--green-dim)' : activeOrder.status === 'preparing' ? 'var(--blue-dim)' : 'var(--yellow-dim)',
-                      color: activeOrder.status === 'ready' ? 'var(--green)' : activeOrder.status === 'preparing' ? 'var(--blue)' : 'var(--yellow)',
+                      background: activeOrder.status === 'completed' ? 'var(--green-dim)' : 'var(--yellow-dim)',
+                      color: activeOrder.status === 'completed' ? 'var(--green)' : 'var(--yellow)',
                     }}>
-                      {activeOrder.status === 'ready' ? '✓ Ready' : activeOrder.status === 'preparing' ? '🔥 Cooking' : '⏳ Pending'}
+                      {activeOrder.status === 'completed' ? '✓ Completed' : '⏳ Pending'}
                     </span>
                   </div>
 
@@ -323,12 +315,7 @@ export default function FloorPlanPage() {
                   {/* Status flow */}
                   {activeOrder.status !== 'completed' && (
                     <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                      {activeOrder.status === 'pending' && (
-                        <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => updateOrderStatus('preparing')}>🔥 Mark Preparing</button>
-                      )}
-                      {activeOrder.status === 'preparing' && (
-                        <button className="btn btn-success" style={{ flex: 1 }} onClick={() => updateOrderStatus('ready')}>✓ Mark Ready</button>
-                      )}
+                      <button className="btn btn-success" style={{ flex: 1 }} onClick={() => updateOrderStatus('completed')}>✅ Mark Completed</button>
                     </div>
                   )}
                 </>

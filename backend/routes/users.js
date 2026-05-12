@@ -6,7 +6,7 @@ const { authMiddleware, roleMiddleware, tenantMiddleware } = require('../middlew
 router.get('/', authMiddleware, roleMiddleware('super_admin', 'admin'), tenantMiddleware, async (req, res) => {
   try {
     const filter = req.restaurantId ? { restaurantId: req.restaurantId } : {};
-    const users = await User.find(filter).select('-password').sort('-createdAt');
+    const users = await User.find(filter).select('-password').sort('-createdAt').lean();
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: err.message });

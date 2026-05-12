@@ -5,9 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow, format } from 'date-fns';
 
-const STATUS_NEXT = { pending: 'preparing', preparing: 'ready', ready: 'completed' };
-const STATUS_LABEL = { pending: '🔥 Start Preparing', preparing: '✓ Mark Ready', ready: '✅ Complete & Serve' };
-const STATUS_BTN_CLS = { pending: 'btn-primary', preparing: 'btn-success', ready: 'btn-secondary' };
+const STATUS_NEXT = { pending: 'completed' };
+const STATUS_LABEL = { pending: '✅ Complete & Serve' };
+const STATUS_BTN_CLS = { pending: 'btn-success' };
 
 function beep() {
   try {
@@ -39,10 +39,10 @@ export default function KitchenPanel() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const paramMap = { active: 'status=pending', preparing: 'status=preparing', ready: 'status=ready', all: '' };
+      const paramMap = { active: 'status=pending', completed: 'status=completed', all: '' };
       const r = await api.get(`/orders?${paramMap[filter] || ''}&limit=60`);
       if (!mountedRef.current) return;
-      const newOrders = r.data;
+      const newOrders = r.data.orders || [];
       const newPending = newOrders.filter(o => o.status === 'pending').length;
       if (newPending > lastCount && lastCount >= 0) {
         beep();
@@ -78,12 +78,8 @@ export default function KitchenPanel() {
   };
 
   const activeOrders = orders.filter(o => o.status === 'pending');
-  const preparingOrders = orders.filter(o => o.status === 'preparing');
-  const readyOrders = orders.filter(o => o.status === 'ready');
 
   const displayOrders = filter === 'active' ? activeOrders
-    : filter === 'preparing' ? preparingOrders
-    : filter === 'ready' ? readyOrders
     : orders;
 
   function getElapsed(createdAt) {
@@ -114,12 +110,6 @@ export default function KitchenPanel() {
             <div style={{ background: 'var(--yellow-dim)', border: '1px solid rgba(234,179,8,0.3)', color: 'var(--yellow)', padding: '6px 14px', borderRadius: 99, fontSize: 14, fontWeight: 800 }}>
               ⏳ {activeOrders.length} Pending
             </div>
-            <div style={{ background: 'var(--blue-dim)', border: '1px solid rgba(59,130,246,0.3)', color: 'var(--blue)', padding: '6px 14px', borderRadius: 99, fontSize: 14, fontWeight: 800 }}>
-              🔥 {preparingOrders.length} Cooking
-            </div>
-            <div style={{ background: 'var(--green-dim)', border: '1px solid rgba(34,197,94,0.3)', color: 'var(--green)', padding: '6px 14px', borderRadius: 99, fontSize: 14, fontWeight: 800 }}>
-              ✓ {readyOrders.length} Ready
-            </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -132,8 +122,6 @@ export default function KitchenPanel() {
       <div style={{ padding: '12px 24px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, flexShrink: 0 }}>
         {[
           { id: 'active', label: '⏳ New Orders', count: activeOrders.length, accent: 'var(--yellow)' },
-          { id: 'preparing', label: '🔥 Preparing', count: preparingOrders.length, accent: 'var(--blue)' },
-          { id: 'ready', label: '✓ Ready to Serve', count: readyOrders.length, accent: 'var(--green)' },
           { id: 'all', label: 'All Active', count: orders.length, accent: 'var(--text-muted)' },
         ].map(f => (
           <button key={f.id}

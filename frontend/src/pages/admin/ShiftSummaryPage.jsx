@@ -31,7 +31,7 @@ export default function ShiftSummaryPage() {
       api.get(`/orders?date=${date}&limit=500`),
     ]).then(([s, o]) => {
       setData(s.data);
-      setOrders(o.data);
+      setOrders(o.data.orders || []);
     }).finally(() => setLoading(false));
   }, [date]);
 
@@ -178,7 +178,7 @@ export default function ShiftSummaryPage() {
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{o.paymentMethod}</div>
                     </td>
                     <td>
-                      <span className={`badge ${o.status === 'completed' ? 'badge-gray' : o.status === 'ready' ? 'badge-green' : o.status === 'preparing' ? 'badge-blue' : 'badge-yellow'}`}>
+                      <span className={`badge ${o.status === 'completed' ? 'badge-gray' : 'badge-yellow'}`}>
                         {o.status}
                       </span>
                     </td>

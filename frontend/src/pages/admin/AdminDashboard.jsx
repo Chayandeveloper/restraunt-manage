@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const SOURCE_COLORS  = { direct: 'badge-green', zomato: 'badge-red', swiggy: 'badge-orange' };
-const STATUS_COLORS  = { pending: 'badge-yellow', preparing: 'badge-blue', ready: 'badge-green', completed: 'badge-gray' };
+const STATUS_COLORS  = { pending: 'badge-yellow', completed: 'badge-gray' };
 
 function QuickLink({ to, icon, label, color, sub }) {
   return (
@@ -32,12 +32,12 @@ export default function AdminDashboard() {
       api.get('/orders/summary/today'),
       api.get('/analytics'),
       api.get('/orders?limit=6'),
-      api.get('/orders?status=pending,preparing,ready&limit=20'),
+      api.get('/orders?status=pending&limit=20'),
     ]).then(([t, m, recent, active]) => {
       setTodaySummary(t.data);
       setMonthAnalytics(m.data);
-      setRecentOrders(recent.data);
-      setActiveOrders(active.data);
+      setRecentOrders(recent.data.orders || []);
+      setActiveOrders(active.data.orders || []);
     }).finally(() => setLoading(false));
   };
 

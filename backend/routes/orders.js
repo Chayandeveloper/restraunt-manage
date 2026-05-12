@@ -35,12 +35,15 @@ router.delete('/:id/items/:index', authMiddleware, roleMiddleware('super_admin',
   }
 });
 
-// Get orders
+// Get orders with pagination and optimization
 router.get('/', authMiddleware, tenantMiddleware, async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
     const filter = { restaurantId: req.restaurantId };
     if (req.query.status) {
-      // support comma-separated statuses e.g. status=pending,preparing
       const statuses = req.query.status.split(',');
       filter.status = statuses.length > 1 ? { $in: statuses } : statuses[0];
     }
@@ -54,28 +57,43 @@ router.get('/', authMiddleware, tenantMiddleware, async (req, res) => {
       filter.createdAt = { $gte: date, $lt: next };
     }
     if (req.query.paymentMethod) filter.paymentMethod = req.query.paymentMethod;
-    const orders = await Order.find(filter)
-      .populate('tableId', 'tableNumber')
-      .populate('createdBy', 'name')
-      .sort('-createdAt')
-      .limit(parseInt(req.query.limit) || 100);
-    res.json(orders);
+
+    const [orders, total] = await Promise.all([
+      Order.find(filter)
+        .populate('tableId', 'tableNumber')
+        .populate('createdBy', 'name')
+        .sort('-createdAt')
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Order.countDocuments(filter)
+    ]);
+
+    res.json({
+      orders,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// Get active order for a specific table
+// Get active order for a specific table - Optimized with .lean()
 router.get('/table/:tableId/active', authMiddleware, tenantMiddleware, async (req, res) => {
   try {
     const order = await Order.findOne({
       restaurantId: req.restaurantId,
       tableId: req.params.tableId,
-      status: { $in: ['pending', 'preparing', 'ready'] },
+      status: 'pending',
     })
       .populate('tableId', 'tableNumber capacity')
       .populate('createdBy', 'name')
-      .sort('-createdAt');
+      .sort('-createdAt')
+      .lean();
     res.json(order || null);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -147,7 +165,8 @@ router.get('/:id', authMiddleware, tenantMiddleware, async (req, res) => {
   try {
     const order = await Order.findOne({ _id: req.params.id, restaurantId: req.restaurantId })
       .populate('tableId', 'tableNumber')
-      .populate('createdBy', 'name');
+      .populate('createdBy', 'name')
+      .lean();
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);
   } catch (err) {
@@ -236,7 +255,7 @@ router.put('/:id/status', authMiddleware, tenantMiddleware, async (req, res) => 
       // Only free table if no other active orders on it
       const otherActive = await Order.findOne({
         tableId: order.tableId._id,
-        status: { $in: ['pending', 'preparing', 'ready'] },
+        status: 'pending',
         _id: { $ne: order._id },
       });
       if (!otherActive) await Table.findByIdAndUpdate(order.tableId._id, { status: 'available' });
@@ -251,11 +270,30 @@ router.put('/:id/status', authMiddleware, tenantMiddleware, async (req, res) => 
 router.put('/:id/payment', authMiddleware, roleMiddleware('super_admin', 'admin', 'staff'), tenantMiddleware, async (req, res) => {
   try {
     const { paymentMethod, paymentStatus } = req.body;
+    const update = { paymentMethod, paymentStatus };
+    
+    // Automatically set status to completed if paid
+    if (paymentStatus === 'paid') {
+      update.status = 'completed';
+    }
+
     const order = await Order.findOneAndUpdate(
       { _id: req.params.id, restaurantId: req.restaurantId },
-      { paymentMethod, paymentStatus }, { new: true }
-    );
+      update, { new: true }
+    ).populate('tableId', 'tableNumber');
+    
     if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // Free table if status became completed
+    if (order.status === 'completed' && order.tableId) {
+        const otherPending = await Order.findOne({
+            tableId: order.tableId._id,
+            status: 'pending',
+            _id: { $ne: order._id },
+        });
+        if (!otherPending) await Table.findByIdAndUpdate(order.tableId._id, { status: 'available' });
+    }
+
     res.json(order);
   } catch (err) {
     res.status(400).json({ message: err.message });

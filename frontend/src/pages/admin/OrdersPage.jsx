@@ -12,8 +12,6 @@ const SOURCE_COLORS = {
 
 const STATUS_CONFIG = {
   pending:   { bg: 'var(--color-background-warning)', color: 'var(--color-text-warning)', icon: '⏳', label: 'Pending' },
-  preparing: { bg: 'var(--color-background-info)',    color: 'var(--color-text-info)',    icon: '🔥', label: 'Preparing' },
-  ready:     { bg: 'var(--color-background-success)', color: 'var(--color-text-success)', icon: '✓', label: 'Ready' },
   completed: { bg: 'var(--color-background-secondary)',color: 'var(--color-text-secondary)',icon: '✅',label: 'Completed' },
 };
 
@@ -122,8 +120,6 @@ function FilterBar({ filter, setFilter }) {
           onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}>
           <option value="">All</option>
           <option value="pending">Pending</option>
-          <option value="preparing">Preparing</option>
-          <option value="ready">Ready</option>
           <option value="completed">Completed</option>
         </select>
       </div>
@@ -230,8 +226,6 @@ function OrderCard({ order, onClick, updateStatus, updatePayment }) {
             onChange={e => updateStatus(order._id, e.target.value)}
           >
             <option value="pending">Pending</option>
-            <option value="preparing">Preparing</option>
-            <option value="ready">Ready</option>
             <option value="completed">Completed</option>
           </select>
         </div>
@@ -355,8 +349,6 @@ function OrderTable({ orders, onSelect, updateStatus, updatePayment }) {
                     onChange={e => updateStatus(o._id, e.target.value)}
                   >
                     <option value="pending">Pending</option>
-                    <option value="preparing">Preparing</option>
-                    <option value="ready">Ready</option>
                     <option value="completed">Completed</option>
                   </select>
                 </td>
@@ -489,8 +481,6 @@ function OrderDetailModal({ order, updateStatus, updatePayment, onClose }) {
               }}
             >
               <option value="pending">Pending</option>
-              <option value="preparing">Preparing</option>
-              <option value="ready">Ready</option>
               <option value="completed">Completed</option>
             </select>
           </div>
@@ -554,7 +544,7 @@ export default function OrdersPage() {
       if (filter.paymentMethod) params.append('paymentMethod', filter.paymentMethod);
       if (filter.date) params.append('date', filter.date);
       const r = await api.get(`/orders?${params}&limit=200`);
-      setOrders(r.data);
+      setOrders(r.data.orders || []);
     } finally { setLoading(false); }
   };
 

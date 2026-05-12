@@ -7,7 +7,7 @@ router.get('/', authMiddleware, tenantMiddleware, async (req, res) => {
     const filter = { restaurantId: req.restaurantId };
     if (req.query.categoryId) filter.categoryId = req.query.categoryId;
     if (req.query.available === 'true') filter.isAvailable = true;
-    const items = await MenuItem.find(filter).populate('categoryId', 'name').sort('name');
+    const items = await MenuItem.find(filter).populate('categoryId', 'name').sort('name').lean();
     res.json(items);
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -15,7 +15,8 @@ router.get('/', authMiddleware, tenantMiddleware, async (req, res) => {
     const reservations = await Reservation.find(filter)
       .populate('tableId', 'tableNumber capacity')
       .populate('createdBy', 'name')
-      .sort('startTime');
+      .sort('startTime')
+      .lean();
     res.json(reservations);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -36,7 +37,7 @@ router.post('/', authMiddleware, roleMiddleware('super_admin', 'admin', 'staff')
         { endTime: { $gt: new Date(startTime), $lte: new Date(endTime) } },
         { startTime: { $lte: new Date(startTime) }, endTime: { $gte: new Date(endTime) } },
       ]
-    });
+    }).lean();
 
     if (conflict) {
       return res.status(409).json({ message: 'Table is already reserved for this time slot' });

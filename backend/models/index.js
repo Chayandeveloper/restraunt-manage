@@ -19,6 +19,8 @@ const userSchema = new mongoose.Schema({
   restaurantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', default: null },
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
+userSchema.index({ restaurantId: 1, role: 1 });
+userSchema.index({ email: 1 });
 
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
@@ -37,6 +39,8 @@ const tableSchema = new mongoose.Schema({
   capacity: { type: Number, required: true, min: 1 },
   status: { type: String, enum: ['available', 'occupied', 'reserved'], default: 'available' },
 }, { timestamps: true });
+tableSchema.index({ restaurantId: 1, status: 1 });
+tableSchema.index({ restaurantId: 1, tableNumber: 1 });
 
 // Category Model
 const categorySchema = new mongoose.Schema({
@@ -44,6 +48,7 @@ const categorySchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
+categorySchema.index({ restaurantId: 1, isActive: 1 });
 
 // MenuItem Model
 const menuItemSchema = new mongoose.Schema({
@@ -54,6 +59,9 @@ const menuItemSchema = new mongoose.Schema({
   description: String,
   isAvailable: { type: Boolean, default: true },
 }, { timestamps: true });
+menuItemSchema.index({ restaurantId: 1, categoryId: 1 });
+menuItemSchema.index({ restaurantId: 1, isAvailable: 1 });
+menuItemSchema.index({ restaurantId: 1, name: 1 });
 
 // Order Model
 const orderItemSchema = new mongoose.Schema({
@@ -74,10 +82,15 @@ const orderSchema = new mongoose.Schema({
   profit: { type: Number, default: 0 },
   paymentMethod: { type: String, enum: ['cash', 'upi', 'card'], default: 'cash' },
   paymentStatus: { type: String, enum: ['pending', 'paid'], default: 'pending' },
-  status: { type: String, enum: ['pending', 'preparing', 'ready', 'completed'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'completed'], default: 'pending' },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   notes: String,
 }, { timestamps: true });
+orderSchema.index({ restaurantId: 1, createdAt: -1 });
+orderSchema.index({ restaurantId: 1, status: 1, createdAt: -1 });
+orderSchema.index({ restaurantId: 1, paymentStatus: 1, createdAt: -1 });
+orderSchema.index({ restaurantId: 1, tableId: 1, status: 1 });
+orderSchema.index({ restaurantId: 1, source: 1 });
 
 orderSchema.pre('save', function(next) {
   const commission = (this.totalAmount * this.commissionPercent) / 100;
@@ -98,6 +111,9 @@ const reservationSchema = new mongoose.Schema({
   notes: String,
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
+reservationSchema.index({ restaurantId: 1, startTime: 1 });
+reservationSchema.index({ restaurantId: 1, status: 1 });
+reservationSchema.index({ tableId: 1, startTime: 1, endTime: 1 });
 
 module.exports = {
   Restaurant: mongoose.model('Restaurant', restaurantSchema),

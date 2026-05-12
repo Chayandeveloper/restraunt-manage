@@ -13,59 +13,61 @@ router.get('/', authMiddleware, roleMiddleware('super_admin', 'admin'), tenantMi
 
     const baseFilter = { restaurantId, createdAt: { $gte: start, $lte: end } };
 
-    // Revenue by source
-    const revenueBySource = await Order.aggregate([
-      { $match: baseFilter },
-      { 
-        $group: { 
-          _id: '$source', 
-          revenue: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$totalAmount', 0] } }, 
-          profit: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$profit', 0] } }, 
-          count: { $sum: 1 } 
-        } 
-      }
-    ]);
-
-    // Orders per day
-    const ordersPerDay = await Order.aggregate([
-      { $match: baseFilter },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          count: { $sum: 1 },
-          revenue: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$totalAmount', 0] } },
-          profit: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$profit', 0] } }
+    const [revenueBySource, ordersPerDay, peakHours, tableUsage, summary] = await Promise.all([
+      // Revenue by source
+      Order.aggregate([
+        { $match: baseFilter },
+        { 
+          $group: { 
+            _id: '$source', 
+            revenue: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$totalAmount', 0] } }, 
+            profit: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$profit', 0] } }, 
+            count: { $sum: 1 } 
+          } 
         }
-      },
-      { $sort: { _id: 1 } }
-    ]);
+      ]),
 
-    // Peak hours
-    const peakHours = await Order.aggregate([
-      { $match: baseFilter },
-      { $group: { _id: { $hour: '$createdAt' }, count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
+      // Orders per day
+      Order.aggregate([
+        { $match: baseFilter },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 },
+            revenue: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$totalAmount', 0] } },
+            profit: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$profit', 0] } }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
 
-    // Table usage
-    const tableUsage = await Order.aggregate([
-      { $match: { ...baseFilter, tableId: { $ne: null }, paymentStatus: 'paid' } },
-      { $group: { _id: '$tableNumber', count: { $sum: 1 }, revenue: { $sum: '$totalAmount' } } },
-      { $sort: { count: -1 } }
-    ]);
+      // Peak hours
+      Order.aggregate([
+        { $match: baseFilter },
+        { $group: { _id: { $hour: '$createdAt' }, count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
 
-    // Summary stats
-    const summary = await Order.aggregate([
-      { $match: baseFilter },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$totalAmount', 0] } },
-          totalProfit: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$profit', 0] } },
-          totalOrders: { $sum: 1 },
-          completedOrders: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+      // Table usage
+      Order.aggregate([
+        { $match: { ...baseFilter, tableId: { $ne: null }, paymentStatus: 'paid' } },
+        { $group: { _id: '$tableNumber', count: { $sum: 1 }, revenue: { $sum: '$totalAmount' } } },
+        { $sort: { count: -1 } }
+      ]),
+
+      // Summary stats
+      Order.aggregate([
+        { $match: baseFilter },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$totalAmount', 0] } },
+            totalProfit: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$profit', 0] } },
+            totalOrders: { $sum: 1 },
+            completedOrders: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          }
         }
-      }
+      ])
     ]);
 
     res.json({

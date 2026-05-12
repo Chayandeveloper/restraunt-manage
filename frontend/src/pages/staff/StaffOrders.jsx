@@ -30,9 +30,9 @@ export default function StaffOrders() {
   /* ── Data fetchers ── */
   const fetchTables     = useCallback(() => api.get('/tables').then(r => setTables(r.data)), []);
   const fetchLiveOrders = useCallback(async () => {
-    const map = { active: 'status=pending', preparing: 'status=preparing', ready: 'status=ready', all: '' };
+    const map = { active: 'status=pending', completed: 'status=completed', all: '' };
     const r   = await api.get(`/orders?${map[liveFilter] || ''}&limit=100`);
-    setLiveOrders(r.data);
+    setLiveOrders(r.data.orders || []);
   }, [liveFilter]);
 
   useEffect(() => {
@@ -417,8 +417,7 @@ export default function StaffOrders() {
               <div className="so-live-filters">
                 {[
                   { id: 'active',    label: '⏳', full: 'Pending'   },
-                  { id: 'preparing', label: '🔥', full: 'Preparing' },
-                  { id: 'ready',     label: '✅', full: 'Ready'     },
+                  { id: 'completed', label: '✅', full: 'Completed' },
                   { id: 'all',       label: '📋', full: 'All Today' },
                 ].map(f => (
                   <button

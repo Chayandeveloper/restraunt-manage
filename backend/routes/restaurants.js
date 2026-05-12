@@ -5,7 +5,7 @@ const { authMiddleware, roleMiddleware } = require('../middleware');
 // Get all restaurants (super_admin only)
 router.get('/', authMiddleware, roleMiddleware('super_admin'), async (req, res) => {
   try {
-    const restaurants = await Restaurant.find().sort('-createdAt');
+    const restaurants = await Restaurant.find().sort('-createdAt').lean();
     res.json(restaurants);
   } catch (err) {
     res.status(500).json({ message: err.message });

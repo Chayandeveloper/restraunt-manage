@@ -10,7 +10,7 @@ const authMiddleware = async (req, res, next) => {
     if (!token) return res.status(401).json({ message: 'No token provided' });
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.userId).select('-password');
+    const user = await User.findById(decoded.userId).select('-password').lean();
     if (!user || !user.isActive) return res.status(401).json({ message: 'Invalid token' });
 
     req.user = user;

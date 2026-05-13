@@ -263,19 +263,19 @@ const SOURCE_BADGE = { direct: 'badge-green', zomato: 'badge-red', swiggy: 'badg
 const STATUS_BADGE = { pending: 'badge-yellow', completed: 'badge-gray' };
 
 const SOURCES = [
-  { id: 'all',    label: 'All',    icon: '🌍' },
+  { id: 'all', label: 'All', icon: '🌍' },
   { id: 'direct', label: 'Direct', icon: '🏪' },
   { id: 'zomato', label: 'Zomato', icon: '🔴' },
   { id: 'swiggy', label: 'Swiggy', icon: '🟠' },
 ];
 
 const QUICK_LINKS = [
-  { to: '/staff',           icon: '🧾', label: 'Terminal' },
-  { to: '/admin/orders',    icon: '📋', label: 'Orders'   },
-  { to: '/admin/tables',    icon: '🪑', label: 'Tables'   },
-  { to: '/kitchen',         icon: '👨‍🍳', label: 'Kitchen'  },
-  { to: '/admin/users',     icon: '👥', label: 'Staff'    },
-  { to: '/admin/analytics', icon: '📊', label: 'Reports'  },
+  { to: '/staff', icon: '🧾', label: 'Terminal' },
+  { to: '/admin/orders', icon: '📋', label: 'Orders' },
+  { to: '/admin/tables', icon: '🪑', label: 'Tables' },
+  { to: '/kitchen', icon: '👨‍🍳', label: 'Kitchen' },
+  { to: '/admin/users', icon: '👥', label: 'Staff' },
+  { to: '/admin/analytics', icon: '📊', label: 'Reports' },
 ];
 
 /* ─── Sub-components ─────────────────────────────────────────────── */
@@ -291,12 +291,12 @@ function StatTile({ label, value, color }) {
 /* ─── Main component ─────────────────────────────────────────────── */
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const [todaySummary,    setTodaySummary]    = useState(null);
-  const [monthAnalytics,  setMonthAnalytics]  = useState(null);
-  const [recentOrders,    setRecentOrders]    = useState([]);
-  const [activeOrders,    setActiveOrders]    = useState([]);
-  const [loading,         setLoading]         = useState(true);
-  const [activeSource,    setActiveSource]    = useState('all');
+  const [todaySummary, setTodaySummary] = useState(null);
+  const [monthAnalytics, setMonthAnalytics] = useState(null);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [activeOrders, setActiveOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeSource, setActiveSource] = useState('all');
 
   const fetchData = () => {
     Promise.all([
@@ -337,15 +337,15 @@ export default function AdminDashboard() {
     const src = sourceList?.find(s => s._id === activeSource);
     if (!src) return { totalRevenue: 0, totalProfit: 0, totalOrders: 0, activeOrders: 0 };
     return {
-      totalRevenue: src.revenue  || src.totalRevenue || 0,
-      totalProfit:  src.profit   || src.totalProfit  || 0,
-      totalOrders:  src.count    || src.totalOrders  || 0,
+      totalRevenue: src.revenue || src.totalRevenue || 0,
+      totalProfit: src.profit || src.totalProfit || 0,
+      totalOrders: src.count || src.totalOrders || 0,
       activeOrders: isToday ? activeOrders.filter(o => o.source === activeSource).length : 0,
     };
   };
 
-  const today  = getFilteredStats(todaySummary?.summary,    todaySummary?.bySource,             true);
-  const month  = getFilteredStats(monthAnalytics?.summary,  monthAnalytics?.revenueBySource,    false);
+  const today = getFilteredStats(todaySummary?.summary, todaySummary?.bySource, true);
+  const month = getFilteredStats(monthAnalytics?.summary, monthAnalytics?.revenueBySource, false);
 
   const filteredActive = activeSource === 'all' ? activeOrders : activeOrders.filter(o => o.source === activeSource);
   const filteredRecent = activeSource === 'all' ? recentOrders : recentOrders.filter(o => o.source === activeSource);
@@ -369,7 +369,7 @@ export default function AdminDashboard() {
           </div>
           <div className="db-header-actions">
             <Link to="/admin/shift" className="btn btn-secondary">📋 Shift Report</Link>
-            <Link to="/admin/menu"  className="btn btn-primary">🍽️ Manage Menu</Link>
+            <Link to="/admin/menu" className="btn btn-primary">🍽️ Manage Menu</Link>
           </div>
         </div>
 
@@ -396,10 +396,10 @@ export default function AdminDashboard() {
               <span className="live-badge"><span className="live-dot" />Live</span>
             </div>
             <div className="stat-grid">
-              <StatTile label="Revenue"     value={`₹${fmt(today.totalRevenue)}`} />
-              <StatTile label="Profit"      value={`₹${fmt(Math.round(today.totalProfit))}`} color="var(--green)" />
-              <StatTile label="Orders"      value={today.totalOrders}             color="var(--blue)" />
-              <StatTile label="Active Now"  value={today.activeOrders}            color="var(--yellow)" />
+              <StatTile label="Revenue" value={`₹${fmt(today.totalRevenue)}`} />
+              <StatTile label="Profit" value={`₹${fmt(Math.round(today.totalProfit))}`} color="var(--green)" />
+              <StatTile label="Orders" value={today.totalOrders} color="var(--blue)" />
+              <StatTile label="Active Now" value={today.activeOrders} color="var(--yellow)" />
             </div>
           </div>
 
@@ -410,10 +410,10 @@ export default function AdminDashboard() {
               <Link to="/admin/analytics" className="btn btn-ghost">Insights →</Link>
             </div>
             <div className="stat-grid">
-              <StatTile label="Revenue"     value={`₹${fmt(month.totalRevenue)}`} />
-              <StatTile label="Profit"      value={`₹${fmt(Math.round(month.totalProfit))}`} color="var(--green)" />
-              <StatTile label="Orders"      value={month.totalOrders}             color="var(--purple)" />
-              <StatTile label="Avg Ticket"  value={`₹${fmt(avgTicket)}`}          color="var(--orange)" />
+              <StatTile label="Revenue" value={`₹${fmt(month.totalRevenue)}`} />
+              <StatTile label="Profit" value={`₹${fmt(Math.round(month.totalProfit))}`} color="var(--green)" />
+              <StatTile label="Orders" value={month.totalOrders} color="var(--purple)" />
+              <StatTile label="Avg Ticket" value={`₹${fmt(avgTicket)}`} color="var(--orange)" />
             </div>
           </div>
 

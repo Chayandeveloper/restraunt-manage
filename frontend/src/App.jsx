@@ -35,7 +35,6 @@ const PageLoader = () => (
   </div>
 );
 
-
 const ProtectedRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
@@ -100,7 +99,6 @@ export default function App() {
           </Routes>
         </Suspense>
       </BrowserRouter>
-
     </AuthProvider>
   );
 }

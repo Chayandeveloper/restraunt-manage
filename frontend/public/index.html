@@ -12,12 +12,22 @@
       body {
         margin: 0;
         background-color: #0c0e14;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        overflow: hidden;
+        color: white;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      #root {
+        height: 100%;
+        width: 100%;
+      }
+      .splash-screen {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #0c0e14;
+        z-index: 9999;
       }
       .splash-container {
         display: flex;
@@ -79,14 +89,15 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root">
-      <div class="splash-container">
-        <div class="splash-logo">R</div>
-        <div class="splash-text">RestaurantOS</div>
-        <div class="loading-bar">
-          <div class="loading-progress"></div>
+      <div class="splash-screen">
+        <div class="splash-container">
+          <div class="splash-logo">R</div>
+          <div class="splash-text">RestaurantOS</div>
+          <div class="loading-bar">
+            <div class="loading-progress"></div>
+          </div>
         </div>
       </div>
     </div>
   </body>
 </html>
-

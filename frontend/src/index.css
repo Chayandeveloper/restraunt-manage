@@ -360,6 +360,12 @@ body {
   transition: var(--transition);
 }
 
+/* Enable horizontal scroll on any card wrapping a data table for premium mobile responsiveness */
+.card:has(.data-table) {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .card-header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
@@ -1286,6 +1292,13 @@ body {
   }
   .filter-item {
     flex-shrink: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 

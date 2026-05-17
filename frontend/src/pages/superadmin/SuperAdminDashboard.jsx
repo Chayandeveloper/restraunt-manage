@@ -150,7 +150,7 @@ export default function SuperAdminDashboard() {
         </div>
 
         {activeTab === 'restaurants' && (
-          <div className="card">
+          <div className="card overflow-x-auto">
             <table className="data-table">
               <thead>
                 <tr>
@@ -194,7 +194,7 @@ export default function SuperAdminDashboard() {
         )}
 
         {activeTab === 'users' && (
-          <div className="card">
+          <div className="card overflow-x-auto">
             <table className="data-table">
               <thead>
                 <tr><th>Name</th><th>Email</th><th>Role</th><th>Restaurant</th><th>Status</th><th>Actions</th></tr>

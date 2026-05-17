@@ -1,18 +1,21 @@
-const CACHE_NAME = 'resto-os-v2';
+const CACHE_NAME = 'resto-os-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo.png',
-  '/favicon.ico'
+  '/logo.png'
 ];
 
 // Install event: Pre-cache static assets
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(STATIC_ASSETS))
+      .then(cache => {
+        console.log('Pre-caching static assets...');
+        return cache.addAll(STATIC_ASSETS);
+      })
       .then(() => self.skipWaiting())
+      .catch(err => console.error('Error pre-caching assets:', err))
   );
 });
 
@@ -28,39 +31,64 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch event: Network-first for API, Cache-first for assets
+// Fetch event handler
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API calls: Network first
-  if (url.pathname.startsWith('/api')) {
+  // Only handle GET requests and avoid caching third-party/API URLs
+  if (request.method !== 'GET' || url.pathname.startsWith('/api')) {
+    return;
+  }
+
+  // Network-First Strategy for HTML, JS, and CSS files.
+  // This ensures hot-reload updates and new deploys are loaded immediately,
+  // while falling back to cache when offline to prevent the white screen of death.
+  if (
+    request.mode === 'navigate' ||
+    url.pathname.endsWith('.html') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname === '/'
+  ) {
     event.respondWith(
       fetch(request)
-        .catch(() => caches.match(request))
+        .then(response => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Serve from cache if completely offline
+          return caches.match(request);
+        })
     );
     return;
   }
 
-  // Static assets and pages: Cache first, fall back to network, then cache the result
+  // Cache-First Strategy for static media assets (images, fonts, manifest)
   event.respondWith(
-    caches.match(request)
-      .then(response => {
-        if (response) return response;
+    caches.match(request).then(cachedResponse => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
 
-        return fetch(request).then(networkResponse => {
-          // Don't cache if not a valid response or if it's a POST request
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' || request.method !== 'GET') {
-            return networkResponse;
-          }
-
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(request, responseToCache);
-          });
-
+      return fetch(request).then(networkResponse => {
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
           return networkResponse;
+        }
+
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(request, responseToCache);
         });
-      })
+
+        return networkResponse;
+      });
+    })
   );
 });

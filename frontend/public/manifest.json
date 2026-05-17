@@ -1,16 +1,25 @@
 {
   "short_name": "RestoOS",
   "name": "Restaurant OS - ERP & POS",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#f97316",
+  "background_color": "#0f1117",
   "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#f97316",
-  "background_color": "#0f1117"
+  ]
 }
